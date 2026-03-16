@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GestaoContas {
+  id             String   @id @default(uuid())
+  nomeFilial     String   // "Rio de Janeiro", "São Paulo"
+  clientId       String
+  clientSecret   String
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  invoices         Invoice[]
+  accountsPayable  AccountsPayable[]
+  accountsReceivale AccountsReceivable[]
+}
+
+model GruposEconomicos {
+  id          String   @id @default(uuid())
+  nome        String   // Ex: Rede Sodexo, McDonald's
+  createdAt   DateTime @default(now())
+  clientes    DeParaClientes[]
+}
+
+model DeParaClientes {
+  clienteIdContaAzul String @id
+  nomeOriginal       String
+  grupoEconomicoId   String?
+  grupoEconomico     GruposEconomicos? @relation(fields: [grupoEconomicoId], references: [id])
+  segmentoTipo       String // "PUB" para Público, "PRI" para Privado
+  
+  // Relações com dados financeiros
+  snapshotsRecebiveis SnapshotsRecebiveis[]
+  invoices            Invoice[]
+  accountsReceivable  AccountsReceivable[]
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  issueDate     DateTime
+  grossValue    Float    // Valor Bruto = Prioridade 1
+  clientId      String
+  client        DeParaClientes @relation(fields: [clientId], references: [clienteIdContaAzul])
+  accountId     String
+  account       GestaoContas @relation(fields: [accountId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model AccountsReceivable {
+  id            String   @id @default(uuid())
+  dueDate       DateTime
+  value         Float
+  status        String   // Vencido, A Vencer, Pago
+  clientId      String
+  client        DeParaClientes @relation(fields: [clientId], references: [clienteIdContaAzul])
+  accountId     String
+  account       GestaoContas @relation(fields: [accountId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SnapshotsRecebiveis {
+  id              String   @id @default(uuid())
+  dataReferencia  DateTime // A "foto" semanal da dívida
+  clienteId       String
+  cliente         DeParaClientes @relation(fields: [clienteId], references: [clienteIdContaAzul])
+  statusFatura    String   // Vencido, a Vencer, Paga
+  valor           Float
+  filialId        String
+  criadoEm        DateTime @default(now())
+}
+
+model CostCenter {
+  id        String   @id @default(uuid())
+  name      String   @unique // Microbiologia, Financeiro, etc
+  expenses  AccountsPayable[]
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique // Salários, Transportes, etc
+  expenses  AccountsPayable[]
+}
+
+model AccountsPayable {
+  id           String   @id @default(uuid())
+  dueDate      DateTime
+  value        Float
+  status       String   // PAGO, A_PAGAR
+  description  String
+  costCenterId String?
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id])
+  accountId    String
+  account      GestaoContas @relation(fields: [accountId], references: [id])
+  isTransfer   Boolean  @default(false) // For RJ/SP coligadas operations
+  createdAt    DateTime @default(now())
+}
