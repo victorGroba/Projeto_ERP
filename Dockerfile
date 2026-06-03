@@ -14,6 +14,8 @@ RUN npm run build          # gera /app/frontend/dist
 # ---- Stage 2: build do backend (TypeScript) ----
 FROM node:20-alpine AS backend
 WORKDIR /app/backend
+# openssl: necessário para o Prisma detectar a engine correta no Alpine
+RUN apk add --no-cache openssl
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
@@ -24,6 +26,8 @@ RUN npm run build           # tsc -> /app/backend/dist
 FROM node:20-alpine
 WORKDIR /app/backend
 ENV NODE_ENV=production
+# openssl + libc6-compat: runtime do Prisma no Alpine
+RUN apk add --no-cache openssl libc6-compat
 
 # Reaproveita node_modules (com Prisma Client gerado) e o build do backend
 COPY --from=backend /app/backend/node_modules ./node_modules
