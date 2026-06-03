@@ -4,10 +4,10 @@ services:
     container_name: ca-bi-dashboard
     restart: unless-stopped
     ports:
-      # Porta externa : porta interna. Ajuste a externa se 3001 já estiver em uso.
-      # Se usar reverse proxy (Traefik/Nginx) na frente, pode remover o mapeamento
-      # e expor via rede do proxy.
-      - "3001:3001"
+      # Porta externa (host) : porta interna (container).
+      # Externa 3031 para não conflitar com a 3001 (já em uso na VPS).
+      # No reverse proxy, aponte o domínio para localhost:3031.
+      - "3031:3001"
     env_file:
       - ./backend/.env
     environment:
