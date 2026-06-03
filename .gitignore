@@ -40,3 +40,29 @@ Thumbs.db
 # Arquivos temporários do Node.js
 .npm/
 .yarn/
+
+# Uploads temporários
+uploads/
+
+# Credenciais e tokens (NUNCA commitar)
+*.token
+*_token*.json
+token_response.json
+Api_conta_azul.txt
+anydesk.txt
+
+# Planilhas com dados financeiros reais (NÃO subir pro GitHub)
+*.xls
+*.xlsx
+*.csv
+
+# Scripts temporários de teste/debug
+backend/_*.ts
+backend/_*.js
+*.timestamp-*.mjs
+
+# Dumps de dados da API (mantém os arquivos de config do projeto)
+backend/*.json
+!backend/package.json
+!backend/package-lock.json
+!backend/tsconfig.json

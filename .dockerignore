@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.git
+**/*.log
+backend/dev.db
+backend/prisma/dev.db
+backend/uploads/*
+frontend/dist
+**/.env.local
+**/_*.js
+**/_*.ts
+*.xls
+*.xlsx

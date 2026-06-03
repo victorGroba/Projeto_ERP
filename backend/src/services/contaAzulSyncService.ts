@@ -3,434 +3,240 @@ import { ContaAzulAPI } from './contaAzulApi';
 
 const prisma = new PrismaClient();
 
-export class ContaAzulSyncService {
+async function getAPI(): Promise<ContaAzulAPI> {
+    const [accessCfg, refreshCfg] = await Promise.all([
+        prisma.appConfig.findUnique({ where: { key: 'access_token_rj' } }),
+        prisma.appConfig.findUnique({ where: { key: 'refresh_token_rj' } }),
+    ]);
 
-    /**
-     * Cria a instância da API com credenciais do banco (prioridade) ou .env
-     */
-    private static async createAPI(nomeFilial: string = 'Rio de Janeiro'): Promise<ContaAzulAPI> {
-        const account = await prisma.gestaoContas.findFirst({ where: { nomeFilial } });
+    return new ContaAzulAPI(
+        accessCfg?.value || process.env.CONTA_AZUL_ACCESS_TOKEN_RJ || '',
+        refreshCfg?.value || process.env.CONTA_AZUL_REFRESH_TOKEN_RJ || '',
+        process.env.CONTA_AZUL_CLIENT_ID_RJ || '',
+        process.env.CONTA_AZUL_CLIENT_SECRET_RJ || '',
+    );
+}
 
-        return new ContaAzulAPI(
-            account?.accessToken || process.env.CONTA_AZUL_ACCESS_TOKEN_RJ || '',
-            account?.refreshToken || process.env.CONTA_AZUL_REFRESH_TOKEN_RJ || '',
-            account?.clientId || process.env.CONTA_AZUL_CLIENT_ID_RJ || '',
-            account?.clientSecret || process.env.CONTA_AZUL_CLIENT_SECRET_RJ || ''
-        );
+async function persistTokens(api: ContaAzulAPI): Promise<void> {
+    await Promise.all([
+        prisma.appConfig.upsert({
+            where: { key: 'access_token_rj' },
+            update: { value: api.getAccessToken() },
+            create: { key: 'access_token_rj', value: api.getAccessToken() },
+        }),
+        prisma.appConfig.upsert({
+            where: { key: 'refresh_token_rj' },
+            update: { value: api.getRefreshTokenValue() },
+            create: { key: 'refresh_token_rj', value: api.getRefreshTokenValue() },
+        }),
+    ]);
+}
+
+// A API retorna apenas 'RECEBIDO' (pago) e 'EM_ABERTO' (aberto).
+// Para EM_ABERTO, usamos a data de vencimento para separar A Vencer / Vencido.
+// Bug corrigido: a versão anterior não reconhecia 'RECEBIDO', classificando títulos
+// pagos como Vencido por causa da data passada — inflando o total de inadimplência.
+function mapStatus(statusTraduzido: string, dataVencimento: Date): string {
+    const s = (statusTraduzido || '').toUpperCase();
+    if (s === 'RECEBIDO' || s === 'PAGO' || s === 'PAID') return 'Pago';
+    // EM_ABERTO: A Vencer se prazo futuro, Vencido se prazo já passou
+    return dataVencimento < new Date() ? 'Vencido' : 'A Vencer';
+}
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+async function paginateAll(fetchFn: (page: number) => Promise<any>): Promise<any[]> {
+    const allItems: any[] = [];
+    let page = 1;
+    let totalRegistros = Infinity;
+
+    while (allItems.length < totalRegistros) {
+        // Delay entre páginas para respeitar o rate limit da API (máx ~5 req/burst)
+        if (page > 1) await sleep(300);
+
+        const data = await fetchFn(page);
+        const items = data?.itens || [];
+        if (items.length === 0) break;
+
+        if (page === 1) totalRegistros = data?.itens_totais ?? items.length;
+
+        allItems.push(...items);
+        if (allItems.length >= totalRegistros) break;
+
+        page++;
+        if (page % 50 === 0) {
+            console.log(`[Sync] Paginando... página ${page}, ${allItems.length}/${totalRegistros}`);
+        }
+    }
+    return allItems;
+}
+
+function dateStr(d: Date): string {
+    return d.toISOString().split('T')[0];
+}
+
+// Converte data da API ("2026-01-01" ou ISO completo) para MEIO-DIA UTC.
+// Evita o bug de fuso: meia-noite UTC vira dia anterior no Brasil (UTC-3),
+// jogando despesas do dia 1º para o mês/ano errado nos controllers que usam getMonth() local.
+function parseApiDate(s?: string | null): Date {
+    if (!s) return new Date();
+    const datePart = s.split('T')[0]; // pega só YYYY-MM-DD
+    const [y, m, d] = datePart.split('-').map(Number);
+    if (!y || !m || !d) return new Date(s);
+    return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+}
+
+// A API ignora tamanhoPagina e sempre retorna 10 itens por página.
+// Usamos itens_totais para controlar a paginação corretamente.
+async function syncDespesas(api: ContaAzulAPI, inicio: string, fim: string, replace: boolean): Promise<number> {
+    const items = await paginateAll(page =>
+        api.getContasAPagar({ dataVencimentoInicio: inicio, dataVencimentoFim: fim, pagina: page, tamanhoPagina: 10 })
+    );
+
+    if (items.length === 0) {
+        console.log('[Sync] Nenhuma despesa retornada pela API.');
+        return 0;
     }
 
-    /**
-     * Garante que as contas de gestão existam no banco
-     */
-    static async initAccounts() {
-        const rj = await prisma.gestaoContas.findFirst({ where: { nomeFilial: 'Rio de Janeiro' } });
-        if (!rj) {
-            await prisma.gestaoContas.create({
-                data: {
-                    nomeFilial: 'Rio de Janeiro',
-                    clientId: process.env.CONTA_AZUL_CLIENT_ID_RJ || '',
-                    clientSecret: process.env.CONTA_AZUL_CLIENT_SECRET_RJ || '',
-                    accessToken: process.env.CONTA_AZUL_ACCESS_TOKEN_RJ || '',
-                    refreshToken: process.env.CONTA_AZUL_REFRESH_TOKEN_RJ || '',
-                }
-            });
-        }
-        const sp = await prisma.gestaoContas.findFirst({ where: { nomeFilial: 'São Paulo' } });
-        if (!sp) {
-            await prisma.gestaoContas.create({
-                data: {
-                    nomeFilial: 'São Paulo',
-                    clientId: process.env.CONTA_AZUL_CLIENT_ID_SP || '',
-                    clientSecret: process.env.CONTA_AZUL_CLIENT_SECRET_SP || '',
-                    accessToken: process.env.CONTA_AZUL_ACCESS_TOKEN_SP || '',
-                    refreshToken: process.env.CONTA_AZUL_REFRESH_TOKEN_SP || '',
-                }
-            });
-        }
-    }
+    const records = items
+        .map((item: any) => ({
+            tipo: 'DESPESA',
+            descricao: item.descricao || 'Sem descrição',
+            categoria: item.categorias?.[0]?.nome || 'Sem Categoria',
+            centroDeCusto: item.centros_de_custo?.[0]?.nome || 'Geral',
+            contaBancaria: item.conta_financeira?.nome || 'N/A',
+            dataPagamento: parseApiDate(item.data_vencimento || item.data_competencia),
+            valor: Math.abs(item.total || item.valor || 0),
+            fornecedor: item.fornecedor?.nome || 'Diverso',
+        }))
+        .filter((r: any) => r.valor > 0);
 
-    /**
-     * Sincroniza clientes (Pessoas) da API v2
-     * Endpoint: GET /v1/pessoa
-     */
-    static async syncClients() {
-        const accountRJ = await prisma.gestaoContas.findFirst({ where: { nomeFilial: 'Rio de Janeiro' } });
-        if (!accountRJ) return;
-
-        const api = await this.createAPI();
-        await api.tryRefreshToken();
-
-        let page = 1;
-        let totalSynced = 0;
-
-        while (true) {
-            const data = await api.getPessoas({ pagina: page, tamanhoPagina: 200 });
-            if (!data || !data.itens || data.itens.length === 0) break;
-
-            for (const pessoa of data.itens) {
-                const clienteId = pessoa.uuid || pessoa.uuid_legado || String(pessoa.id_legado);
-                await prisma.deParaClientes.upsert({
-                    where: { clienteIdContaAzul: clienteId },
-                    update: { nomeOriginal: pessoa.nome || 'Sem nome' },
-                    create: {
-                        clienteIdContaAzul: clienteId,
-                        nomeOriginal: pessoa.nome || 'Sem nome',
-                        segmentoTipo: 'PRI', // Default, pode ser alterado manualmente depois
-                    }
-                });
-                totalSynced++;
-            }
-
-            if (data.itens.length < 200) break;
-            page++;
-        }
-
-        // Salva token atualizado
-        await prisma.gestaoContas.update({
-            where: { id: accountRJ.id },
-            data: {
-                accessToken: api.getAccessToken(),
-                refreshToken: api.getRefreshTokenValue()
-            }
+    if (replace) {
+        await prisma.lancamento.deleteMany({ where: { tipo: 'DESPESA' } });
+    } else {
+        // Incremental: remove só o período buscado antes de re-inserir
+        await prisma.lancamento.deleteMany({
+            where: { tipo: 'DESPESA', dataPagamento: { gte: new Date(inicio), lte: new Date(fim) } }
         });
+    }
+    if (records.length > 0) await prisma.lancamento.createMany({ data: records });
+    return records.length;
+}
 
-        console.log(`[ETL] ✅ ${totalSynced} clientes sincronizados da API v2.`);
+async function syncReceitas(api: ContaAzulAPI, inicio: string, fim: string, replace: boolean): Promise<number> {
+    const items = await paginateAll(page =>
+        api.getContasAReceber({ dataVencimentoInicio: inicio, dataVencimentoFim: fim, pagina: page, tamanhoPagina: 10 })
+    );
+
+    if (items.length === 0) {
+        console.log('[Sync] Nenhuma receita retornada pela API.');
+        return 0;
     }
 
-    /**
-     * Sincroniza vendas da API v2
-     * Endpoint: GET /v1/venda/busca
-     */
-    static async syncInvoices() {
-        const accountRJ = await prisma.gestaoContas.findFirst({ where: { nomeFilial: 'Rio de Janeiro' } });
-        if (!accountRJ) return;
+    const records = items
+        .map((item: any) => {
+            const dataVenc = parseApiDate(item.data_vencimento);
+            return {
+                cliente: item.cliente?.nome || 'Sem cliente',
+                grupo: item.centros_de_custo?.[0]?.nome || 'Sem Grupo',
+                dataCompetencia: item.data_competencia ? parseApiDate(item.data_competencia) : null,
+                dataVencimento: dataVenc,
+                valor: Math.abs(
+                    item.status_traduzido === 'RECEBIDO'
+                        ? (item.total ?? 0)
+                        : (item.nao_pago ?? item.total ?? 0)
+                ),
+                status: mapStatus(item.status_traduzido || '', dataVenc),
+                descricao: item.descricao || '',
+                numeroNotaFiscal: item.numero_nota_fiscal || '',
+            };
+        })
+        .filter((r: any) => r.valor > 0);
 
-        const api = await this.createAPI();
-        await api.tryRefreshToken();
-
-        let page = 1;
-        let totalSynced = 0;
-        const allSales: any[] = [];
-        const DATA_CORTE = '2025-01-01';
-
-        // A API de vendas da Conta Azul ignora todos os filtros de data e tamanhoPagina.
-        // Retorna sempre 10 itens por página em ordem cronológica.
-        // Precisamos paginar por TODAS as vendas e filtrar localmente.
-        console.log('[ETL] Buscando todas as vendas da API (pode demorar alguns minutos)...');
-        while (true) {
-            const data = await api.getVendas({
-                pagina: page,
-            });
-            const items = data?.itens || (Array.isArray(data) ? data : []);
-            if (!items || items.length === 0) break;
-
-            // Filtra vendas com data >= 2025-01-01
-            for (const item of items) {
-                if (item.data && item.data >= DATA_CORTE) {
-                    allSales.push(item);
-                }
-            }
-
-            // Se a última venda da página já passou de 2026, podemos parar
-            const lastDate = items[items.length - 1]?.data;
-            if (lastDate && lastDate > '2026-12-31') break;
-
-            if (page % 100 === 0) {
-                const dates = items.map((v: any) => v.data).filter(Boolean);
-                console.log(`[ETL] Paginando vendas... página ${page}, datas: ${dates[0]} a ${dates[dates.length - 1]}, encontradas até agora: ${allSales.length}`);
-            }
-            page++;
-        }
-        console.log(`[ETL] Paginação concluída: ${page} páginas percorridas, ${allSales.length} vendas de 2025+ encontradas.`);
-
-        if (allSales.length === 0) {
-            console.warn('[ETL] Nenhuma venda retornada pela API v2.');
-            return;
-        }
-
-        // Limpa vendas antigas para re-sincronizar
-        await prisma.invoice.deleteMany({});
-
-        for (const sale of allSales) {
-            // Campos reais da API v2: sale.cliente.id, sale.total, sale.numero, sale.data
-            const clienteId = sale.cliente?.id;
-            const invoiceNumber = String(sale.numero || sale.id_legado || sale.id);
-            const issueDate = new Date(sale.data || sale.criado_em);
-            const grossValue = sale.total || 0;
-
-            // Garante que o cliente existe no DeParaClientes
-            if (clienteId) {
-                const existingClient = await prisma.deParaClientes.findUnique({
-                    where: { clienteIdContaAzul: String(clienteId) }
-                });
-                if (!existingClient) {
-                    await prisma.deParaClientes.create({
-                        data: {
-                            clienteIdContaAzul: String(clienteId),
-                            nomeOriginal: sale.cliente?.nome || 'Cliente API',
-                            segmentoTipo: 'PRI',
-                        }
-                    });
-                }
-            }
-
-            try {
-                await prisma.invoice.create({
-                    data: {
-                        invoiceNumber,
-                        issueDate,
-                        grossValue,
-                        clientId: String(clienteId || 'desconhecido'),
-                        accountId: accountRJ.id
-                    }
-                });
-                totalSynced++;
-            } catch (e: any) {
-                // Ignora duplicatas
-                if (!e.message?.includes('Unique constraint')) {
-                    console.warn(`[ETL] Erro ao salvar venda ${invoiceNumber}:`, e.message);
-                }
-            }
-        }
-
-        await prisma.gestaoContas.update({
-            where: { id: accountRJ.id },
-            data: {
-                accessToken: api.getAccessToken(),
-                refreshToken: api.getRefreshTokenValue()
-            }
+    if (replace) {
+        await prisma.contaReceber.deleteMany();
+    } else {
+        await prisma.contaReceber.deleteMany({
+            where: { dataVencimento: { gte: new Date(inicio), lte: new Date(fim) } }
         });
+    }
+    if (records.length > 0) await prisma.contaReceber.createMany({ data: records });
+    return records.length;
+}
 
-        console.log(`[ETL] ✅ ${totalSynced} vendas/notas fiscais sincronizadas da API v2.`);
+async function syncSaldosBancarios(api: ContaAzulAPI): Promise<number> {
+    const data = await api.getContasFinanceiras();
+    const items = data?.itens || [];
+
+    if (items.length === 0) {
+        console.log('[Sync] Nenhuma conta financeira retornada pela API.');
+        return 0;
     }
 
-    /**
-     * Sincroniza Contas a Receber (Receitas) da API v2
-     * Endpoint: GET /v1/financeiro/eventos-financeiros/contas-a-receber/buscar
-     */
-    static async syncAccountsReceivable() {
-        const accountRJ = await prisma.gestaoContas.findFirst({ where: { nomeFilial: 'Rio de Janeiro' } });
-        if (!accountRJ) return;
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    await prisma.saldoBancario.deleteMany({ where: { data: { gte: inicioMes } } });
 
-        const api = await this.createAPI();
+    const records = items.map((item: any) => ({
+        instituicao: item.nome || item.descricao || 'Conta',
+        saldo: item.saldo ?? 0,
+        data: hoje,
+    }));
+
+    await prisma.saldoBancario.createMany({ data: records });
+    return records.length;
+}
+
+// Modo incremental: últimos 60 dias + próximos 90 (rápido, ~200-400 registros)
+export async function runIncrementalSync(): Promise<{ success: boolean; message: string; details?: any }> {
+    try {
+        console.log('[Sync] ⚡ Iniciando sincronização incremental...');
+        const api = await getAPI();
         await api.tryRefreshToken();
 
-        let page = 1;
-        let totalSynced = 0;
-        const allItems: any[] = [];
+        const hoje = new Date();
+        const inicio = dateStr(new Date(hoje.getTime() - 60 * 24 * 60 * 60 * 1000));  // 60 dias atrás
+        const fim    = dateStr(new Date(hoje.getTime() + 90 * 24 * 60 * 60 * 1000));  // 90 dias à frente
 
-        while (true) {
-            const data = await api.getContasAReceber({
-                dataVencimentoInicio: '2022-01-01',
-                dataVencimentoFim: '2026-12-31',
-                pagina: page,
-                tamanhoPagina: 200
-            });
-            const items = data?.itens || (Array.isArray(data) ? data : []);
-            if (!items || items.length === 0) break;
-            allItems.push(...items);
+        const [despesas, receitas, saldos] = await Promise.all([
+            syncDespesas(api, inicio, fim, false),
+            syncReceitas(api, inicio, fim, false),
+            syncSaldosBancarios(api),
+        ]);
 
-            if (page % 50 === 0) console.log(`[ETL] Paginando contas a receber... página ${page}, total até agora: ${allItems.length}`);
-            page++;
-        }
-
-        if (allItems.length === 0) {
-            console.warn('[ETL] Nenhuma conta a receber retornada pela API v2.');
-            return;
-        }
-
-        await prisma.accountsReceivable.deleteMany({});
-
-        for (const item of allItems) {
-            // Campos reais da API v2: item.cliente.id, item.total, item.data_vencimento
-            const clienteId = item.cliente?.id;
-            const dueDate = new Date(item.data_vencimento || item.data_competencia);
-            const value = item.total || item.nao_pago || 0;
-            const statusRaw = item.status_traduzido || item.status;
-            const status = statusRaw === 'PAGO' ? 'Pago' : (statusRaw === 'VENCIDO' ? 'Vencido' : 'A Vencer');
-
-            // Garante que o cliente existe
-            if (clienteId) {
-                const exists = await prisma.deParaClientes.findUnique({
-                    where: { clienteIdContaAzul: String(clienteId) }
-                });
-                if (!exists) {
-                    await prisma.deParaClientes.create({
-                        data: {
-                            clienteIdContaAzul: String(clienteId),
-                            nomeOriginal: item.cliente?.nome || 'Cliente Receita',
-                            segmentoTipo: 'PRI',
-                        }
-                    });
-                }
-            }
-
-            try {
-                await prisma.accountsReceivable.create({
-                    data: {
-                        dueDate,
-                        value,
-                        status,
-                        clientId: String(clienteId || 'desconhecido'),
-                        accountId: accountRJ.id
-                    }
-                });
-                totalSynced++;
-            } catch (e: any) {
-                console.warn('[ETL] Erro ao salvar receita:', e.message);
-            }
-        }
-
-        console.log(`[ETL] ✅ ${totalSynced} contas a receber sincronizadas da API v2.`);
+        await persistTokens(api);
+        const details = { despesas, receitas, saldos, modo: 'incremental', janela: `${inicio} → ${fim}` };
+        console.log('[Sync] ✅ Incremental concluído:', details);
+        return { success: true, message: 'Sincronização incremental concluída!', details };
+    } catch (error: any) {
+        console.error('[Sync] ❌ Falha:', error.message);
+        return { success: false, message: error.message || 'Erro desconhecido' };
     }
+}
 
-    /**
-     * Sincroniza Contas a Pagar (Despesas) da API v2
-     * Endpoint: GET /v1/financeiro/eventos-financeiros/contas-a-pagar/buscar
-     */
-    static async syncAccountsPayable() {
-        const accountRJ = await prisma.gestaoContas.findFirst({ where: { nomeFilial: 'Rio de Janeiro' } });
-        if (!accountRJ) return;
-
-        const api = await this.createAPI();
+// Modo full: 2 anos completos (histórico para os relatórios comparativos — pode levar alguns minutos)
+export async function runFullSync(): Promise<{ success: boolean; message: string; details?: any }> {
+    try {
+        console.log('[Sync] 🔄 Iniciando sincronização completa (2 anos)...');
+        const api = await getAPI();
         await api.tryRefreshToken();
 
-        let page = 1;
-        let totalSynced = 0;
-        const allItems: any[] = [];
+        const hoje = new Date();
+        const inicio = `${hoje.getFullYear() - 1}-01-01`;   // início do ano anterior
+        const fim    = `${hoje.getFullYear() + 1}-12-31`;   // fim do próximo ano
 
-        while (true) {
-            const data = await api.getContasAPagar({
-                dataVencimentoInicio: '2022-01-01',
-                dataVencimentoFim: '2026-12-31',
-                pagina: page,
-                tamanhoPagina: 200
-            });
-            const items = data?.itens || (Array.isArray(data) ? data : []);
-            if (!items || items.length === 0) break;
-            allItems.push(...items);
+        const [despesas, receitas, saldos] = await Promise.all([
+            syncDespesas(api, inicio, fim, true),
+            syncReceitas(api, inicio, fim, true),
+            syncSaldosBancarios(api),
+        ]);
 
-            if (page % 50 === 0) console.log(`[ETL] Paginando contas a pagar... página ${page}, total até agora: ${allItems.length}`);
-            page++;
-        }
-
-        if (allItems.length === 0) {
-            console.warn('[ETL] Nenhuma conta a pagar retornada pela API v2.');
-            return;
-        }
-
-        await prisma.accountsPayable.deleteMany({});
-
-        for (const item of allItems) {
-            const dueDate = new Date(item.data_vencimento || item.data_competencia);
-            const value = item.valor || item.valor_parcela || 0;
-            const status = item.status === 'PAGO' ? 'PAGO' : 'A_PAGAR';
-            const description = item.descricao || item.observacao || 'Sem descrição';
-
-            // Mapeia categoria e centro de custo se existirem
-            let categoryId: string | null = null;
-            let costCenterId: string | null = null;
-
-            if (item.id_categoria || item.nome_categoria) {
-                const catName = item.nome_categoria || item.id_categoria;
-                const cat = await prisma.category.upsert({
-                    where: { name: catName },
-                    update: {},
-                    create: { name: catName }
-                });
-                categoryId = cat.id;
-            }
-
-            if (item.id_centro_de_custo || item.nome_centro_de_custo) {
-                const ccName = item.nome_centro_de_custo || item.id_centro_de_custo;
-                const cc = await prisma.costCenter.upsert({
-                    where: { name: ccName },
-                    update: {},
-                    create: { name: ccName }
-                });
-                costCenterId = cc.id;
-            }
-
-            try {
-                await prisma.accountsPayable.create({
-                    data: {
-                        dueDate,
-                        value,
-                        status,
-                        description,
-                        categoryId,
-                        costCenterId,
-                        accountId: accountRJ.id,
-                        isTransfer: false
-                    }
-                });
-                totalSynced++;
-            } catch (e: any) {
-                console.warn('[ETL] Erro ao salvar despesa:', e.message);
-            }
-        }
-
-        // Salva token atualizado
-        await prisma.gestaoContas.update({
-            where: { id: accountRJ.id },
-            data: {
-                accessToken: api.getAccessToken(),
-                refreshToken: api.getRefreshTokenValue()
-            }
-        });
-
-        console.log(`[ETL] ✅ ${totalSynced} contas a pagar sincronizadas da API v2.`);
-    }
-
-    /**
-     * Sincroniza Categorias financeiras da API v2
-     * Endpoint: GET /v1/categorias
-     */
-    static async syncCategories() {
-        const api = await this.createAPI();
-        await api.tryRefreshToken();
-
-        const data = await api.getCategorias();
-        if (!data || !data.itens) {
-            console.warn('[ETL] Nenhuma categoria retornada.');
-            return;
-        }
-
-        let synced = 0;
-        for (const cat of data.itens) {
-            if (cat.tipo === 'DESPESA') {
-                await prisma.category.upsert({
-                    where: { name: cat.nome },
-                    update: {},
-                    create: { name: cat.nome }
-                });
-                synced++;
-            }
-        }
-        console.log(`[ETL] ✅ ${synced} categorias de despesa sincronizadas.`);
-    }
-
-    /**
-     * Orquestrador do ETL completo
-     */
-    static async runFullSync() {
-        try {
-            console.log('[ETL] 🚀 Iniciando sincronização completa via API v2 da Conta Azul...');
-
-            await this.initAccounts();
-            console.log('[ETL] ✅ Contas inicializadas.');
-
-            await this.syncCategories();
-            await this.syncClients();
-            await this.syncInvoices();
-            await this.syncAccountsReceivable();
-            await this.syncAccountsPayable();
-
-            console.log('[ETL] 🎉 ETL completo via API Oficial da Conta Azul (v2)!');
-            return { success: true, message: 'ETL concluído com sucesso via API Oficial v2 da Conta Azul.' };
-        } catch (error: any) {
-            console.error('[ETL Error]', error);
-            return { success: false, error: String(error.message || error) };
-        }
+        await persistTokens(api);
+        const details = { despesas, receitas, saldos, modo: 'full', janela: `${inicio} → ${fim}` };
+        console.log('[Sync] ✅ Full concluído:', details);
+        return { success: true, message: 'Sincronização completa concluída!', details };
+    } catch (error: any) {
+        console.error('[Sync] ❌ Falha:', error.message);
+        return { success: false, message: error.message || 'Erro desconhecido' };
     }
 }

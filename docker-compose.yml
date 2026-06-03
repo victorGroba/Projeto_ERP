@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    container_name: ca-bi-dashboard
+    restart: unless-stopped
+    ports:
+      # Porta externa : porta interna. Ajuste a externa se 3001 já estiver em uso.
+      # Se usar reverse proxy (Traefik/Nginx) na frente, pode remover o mapeamento
+      # e expor via rede do proxy.
+      - "3001:3001"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Banco SQLite no volume persistente (sobrescreve o DATABASE_URL do .env)
+      - DATABASE_URL=file:/app/data/prod.db
+      - NODE_ENV=production
+      - PORT=3001
+      # Admin inicial criado no primeiro start (troque a senha!)
+      - ADMIN_EMAIL=admin@labmattos.com.br
+      - ADMIN_PASSWORD=troque-esta-senha
+    volumes:
+      - ca-bi-data:/app/data
+
+volumes:
+  ca-bi-data:

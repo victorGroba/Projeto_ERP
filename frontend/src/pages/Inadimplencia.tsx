@@ -1,262 +1,230 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
-import {
-    ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-    PieChart, Pie, Cell, Legend, BarChart, Bar
-} from 'recharts';
-import { Filter, DollarSign, AlertCircle, TrendingUp, Clock } from 'lucide-react';
-import './Inadimplencia.css';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import './Dashboard.css';
 
-interface InadimplenciaOverview {
-    totalFaturado: number;
-    totalRecebido: number;
-    totalEmAberto: number;
-    detalheEmAberto: {
-        vencido: number;
-        aVencer: number;
-    }
-}
+const AGING_COLORS = ['#3b82f6', '#f59e0b', '#f97316', '#ef4444', '#7f1d1d'];
 
-interface InadimplenciaComposicao {
-    composicao: Array<{ nome: string; total: number; isGroup: boolean }>;
-}
-
-interface InadimplenciaEvolution {
-    evolution: Array<{ data: string; Vencido: number; AVencer: number }>;
-}
-
-export const Inadimplencia = () => {
-    const { token } = useContext(AuthContext);
-    const storedToken = localStorage.getItem('@ContaAzul:token') || token;
-
-    const [year, setYear] = useState('2025');
-    const [overview, setOverview] = useState<InadimplenciaOverview | null>(null);
-    const [composicao, setComposicao] = useState<InadimplenciaComposicao | null>(null);
-    const [evolution, setEvolution] = useState<InadimplenciaEvolution | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    const formatterBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-    const COLORS = ['#ef4444', '#f97316', '#eab308', '#8b5cf6', '#3b82f6', '#10b981', '#14b8a6', '#64748b', '#94a3b8', '#cbd5e1', '#f1f5f9'];
+const Inadimplencia: React.FC = () => {
+    const token = localStorage.getItem('@ContaAzul:token');
+    const [year, setYear] = useState<number>(new Date().getFullYear());
+    const [agingData, setAgingData] = useState<any[]>([]);
+    const [topDevedores, setTopDevedores] = useState<any[]>([]);
+    const [totalAtraso, setTotalAtraso] = useState<number>(0);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchData = async () => {
-            if (!storedToken) return;
-            setLoading(true);
-            try {
-                const config = { headers: { Authorization: `Bearer ${storedToken}` } };
-                const qs = `?year=${year}`;
+        fetchDados();
+    }, [year]);
 
-                const [res1, res2, res3] = await Promise.all([
-                    axios.get(`http://localhost:3001/api/inadimplencia/overview${qs}`, config),
-                    axios.get(`http://localhost:3001/api/inadimplencia/composition${qs}`, config),
-                    axios.get(`http://localhost:3001/api/inadimplencia/evolution${qs}`, config)
-                ]);
+    const fetchDados = async () => {
+        setIsLoading(true);
+        try {
+            const response = await axios.get(`/api/dashboard/inadimplencia/aging?year=${year}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                setOverview(res1.data);
-                setComposicao(res2.data);
-                setEvolution(res3.data);
-            } catch (error) {
-                console.error("Erro ao buscar dados de inadimplência:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, [year, storedToken]);
+            const { aging, totalAtraso, topDevedores } = response.data;
 
-    if (loading) {
-        return (
-            <div className="inadimplencia-container">
-                <div className="loading-state">
-                    <div className="spinner"></div>
-                    <p>Processando Matriz de Inadimplência...</p>
-                </div>
-            </div>
-        );
-    }
+            const agingArray = [
+                { name: 'A Vencer', value: aging.a_vencer },
+                { name: '1 a 30 dias', value: aging.ate_30 },
+                { name: '31 a 60 dias', value: aging.de_31_a_60 },
+                { name: '61 a 90 dias', value: aging.de_61_a_90 },
+                { name: 'Mais de 90 dias', value: aging.mais_de_90 }
+            ].filter(item => item.value > 0);
 
-    // Pie chart Data (Composição)
-    const pieData = composicao?.composicao.map((item, index) => ({
-        name: item.nome,
-        value: item.total,
-        color: COLORS[index % COLORS.length]
-    })) || [];
-
-    // Formatter para tooltip
-    const renderTooltipContent = (props: any) => {
-        const { payload } = props;
-        if (payload && payload.length) {
-            return (
-                <div style={{ background: 'rgba(15,23,42,0.9)', padding: '10px 15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <p style={{ margin: 0, fontWeight: 700, color: '#f8fafc', marginBottom: '5px' }}>{payload[0].payload.name || payload[0].payload.data}</p>
-                    {payload.map((entry: any, index: number) => (
-                        <p key={index} style={{ margin: 0, color: entry.color || entry.stroke || '#94a3b8', fontSize: '0.9rem' }}>
-                            {entry.name}: {formatterBRL.format(entry.value)}
-                        </p>
-                    ))}
-                </div>
-            );
+            setAgingData(agingArray);
+            setTotalAtraso(totalAtraso);
+            setTopDevedores(topDevedores);
+        } catch (error) {
+            console.error('Erro ao buscar dados de inadimplência', error);
+        } finally {
+            setIsLoading(false);
         }
-        return null;
     };
 
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    };
+
+    const percentVencido = totalAtraso / (totalAtraso + (agingData.find(d => d.name === 'A Vencer')?.value || 0)) * 100 || 0;
+
     return (
-        <div className="inadimplencia-container">
-            <header className="inadimplencia-header">
-                <h2>Gestão de Inadimplência</h2>
-                <div className="filter-controls">
-                    <div style={{ position: 'relative' }}>
-                        <Filter size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#94a3b8' }} />
-                        <select
-                            className="filter-select"
-                            value={year}
-                            onChange={(e) => setYear(e.target.value)}
-                            style={{ paddingLeft: '2.2rem' }}
-                        >
-                            <option value="2026">2026</option>
-                            <option value="2025">2025</option>
-                            <option value="2024">2024</option>
-                        </select>
-                    </div>
+        <div className="module-page fade-in">
+            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h2>Risco e Inadimplência</h2>
+                    <p>Monitoramento do Tempo de Atraso e Risco por Grupos</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Ano Base:</span>
+                    <select
+                        value={year}
+                        onChange={(e) => setYear(Number(e.target.value))}
+                        style={{
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '0.75rem',
+                            padding: '0.6rem 1.25rem',
+                            color: 'var(--text-main)',
+                            fontWeight: 600,
+                            outline: 'none',
+                            cursor: 'pointer',
+                            fontSize: '1rem'
+                        }}
+                    >
+                        <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
+                        <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
+                        <option value={new Date().getFullYear() + 1}>{new Date().getFullYear() + 1}</option>
+                    </select>
                 </div>
             </header>
 
-            <div className="kpi-grid">
-                <div className="kpi-card">
-                    <div className="kpi-icon-wrapper primary"><DollarSign size={24} /></div>
-                    <div className="kpi-title">Faturamento Total Bruto</div>
-                    <div className="kpi-value">{formatterBRL.format(overview?.totalFaturado || 0)}</div>
-                    <div className="kpi-subtitle">Emitido no ano referenciado</div>
+            {isLoading ? (
+                <div className="loading-state">
+                    <div className="animate-spin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(59, 130, 246, 0.2)', borderTopColor: '#3b82f6', marginBottom: '1rem' }}></div>
+                    <span style={{ marginLeft: '1rem' }}>Processando carteira de Recebíveis...</span>
                 </div>
+            ) : (
+                <>
+                    <div className="metrics-grid">
+                        <div className="kpi-card highlight">
+                            <div className="kpi-icon" style={{ background: '#fff1f2', color: '#e11d48' }}>
+                                <AlertCircle size={28} />
+                            </div>
+                            <div className="kpi-content">
+                                <h4>Total Vencido em Atraso</h4>
+                                <h2 style={{ color: '#e11d48' }}>{formatCurrency(totalAtraso)}</h2>
+                            </div>
+                        </div>
 
-                <div className="kpi-card">
-                    <div className="kpi-icon-wrapper success"><TrendingUp size={24} /></div>
-                    <div className="kpi-title">Recebido Liquidado</div>
-                    <div className="kpi-value">{formatterBRL.format(overview?.totalRecebido || 0)}</div>
-                    <div className="kpi-subtitle">
-                        <span className="positive">{overview?.totalFaturado ? Math.round((overview.totalRecebido! / overview.totalFaturado!) * 100) : 0}%</span>
-                        do Faturado
-                    </div>
-                </div>
+                        <div className="kpi-card">
+                            <div className="kpi-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+                                <CheckCircle2 size={28} />
+                            </div>
+                            <div className="kpi-content">
+                                <h4>A Vencer (Saudável)</h4>
+                                <h2>{formatCurrency(agingData.find(d => d.name === 'A Vencer')?.value || 0)}</h2>
+                            </div>
+                        </div>
 
-                <div className="kpi-card alert">
-                    <div className="kpi-icon-wrapper warning"><AlertCircle size={24} /></div>
-                    <div className="kpi-title">Total Vencido em Aberto</div>
-                    <div className="kpi-value">{formatterBRL.format(overview?.detalheEmAberto.vencido || 0)}</div>
-                    <div className="kpi-subtitle">
-                        <span className="negative">{overview?.totalFaturado ? Math.round((overview.detalheEmAberto.vencido! / overview.totalFaturado!) * 100) : 0}%</span>
-                        Representatividade da Dívida Real
-                    </div>
-                </div>
-
-                <div className="kpi-card">
-                    <div className="kpi-icon-wrapper" style={{ background: 'rgba(94, 234, 212, 0.2)', color: '#2dd4bf', border: '1px solid rgba(94, 234, 212, 0.3)' }}>
-                        <Clock size={24} />
-                    </div>
-                    <div className="kpi-title">A Vencer (Fluxo Futuro)</div>
-                    <div className="kpi-value">{formatterBRL.format(overview?.detalheEmAberto.aVencer || 0)}</div>
-                    <div className="kpi-subtitle">Provisão de Entradas</div>
-                </div>
-            </div>
-
-            <div className="charts-grid">
-                <div className="chart-container" style={{ gridColumn: '1 / -1' }}>
-                    <div className="chart-header">
-                        <div className="chart-title-group">
-                            <h3>Evolução Semanal do Contas a Receber</h3>
-                            <p>Base construída através do registro de fotografias semanais sobre Vencimento e Inadimplência</p>
+                        <div className="kpi-card">
+                            <div className="kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                                <ShieldAlert size={28} />
+                            </div>
+                            <div className="kpi-content">
+                                <div>
+                                    <h4>Risco Crítico (&gt; 90 dias)</h4>
+                                </div>
+                                <h2 style={{ color: '#d97706' }}>
+                                    {formatCurrency(agingData.find(d => d.name === 'Mais de 90 dias')?.value || 0)}
+                                </h2>
+                                <span style={{
+                                    display: 'inline-block', marginTop: '0.25rem', padding: '0.15rem 0.6rem',
+                                    borderRadius: '2rem', fontSize: '0.75rem', fontWeight: 700,
+                                    background: 'var(--surface-hover)',
+                                    color: 'var(--text-muted)'
+                                }}>
+                                    Taxa Inadimplência: {percentVencido.toFixed(1)}%
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div style={{ width: '100%', height: 350 }}>
-                        <ResponsiveContainer>
-                            <AreaChart data={evolution?.evolution || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                <defs>
-                                    <linearGradient id="colorVencido" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.5} />
-                                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorAVencer" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.5} />
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                <XAxis
-                                    dataKey="data"
-                                    stroke="#94a3b8"
-                                    tickFormatter={(val) => {
-                                        const d = new Date(val);
-                                        return `${d.getDate()}/${d.getMonth() + 1}`;
-                                    }}
-                                />
-                                <YAxis stroke="#94a3b8" tickFormatter={(val: any) => `R$ ${(val / 1000).toFixed(0)}k`} />
-                                <Tooltip content={renderTooltipContent} cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                <Area type="monotone" dataKey="Vencido" stroke="#ef4444" fillOpacity={1} fill="url(#colorVencido)" />
-                                <Area type="monotone" dataKey="AVencer" name="A Vencer" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorAVencer)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
 
-                <div className="chart-container">
-                    <div className="chart-header">
-                        <div className="chart-title-group">
-                            <h3>Composição da Inadimplência</h3>
-                            <p>Peso Financeiro por Devedores Top 10</p>
+                    <div className="charts-grid" style={{ gridTemplateColumns: 'minmax(350px, 1fr) 2fr', marginBottom: '2rem' }}>
+                        <div className="chart-container">
+                            <h3>Idade da Dívida e Atrasos</h3>
+                            <div style={{ height: '250px', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {agingData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={agingData}
+                                                cx="50%" cy="50%"
+                                                innerRadius={65} outerRadius={90}
+                                                paddingAngle={4}
+                                                dataKey="value" stroke="none"
+                                                label={({ percent }) => (percent || 0) > 0.05 ? `${((percent || 0) * 100).toFixed(0)}%` : ''}
+                                                labelLine={false}
+                                            >
+                                                {agingData.map((_entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={AGING_COLORS[index % AGING_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value: any) => formatCurrency(Number(value))} contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '12px', color: 'var(--text-main)' }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div style={{ color: 'var(--text-muted)' }}>Sem dados</div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+                                {agingData.map((d, i) => (
+                                    <div key={d.name} style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', marginRight: '6px', backgroundColor: AGING_COLORS[i % AGING_COLORS.length] }}></div>
+                                        {d.name}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="chart-container" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ padding: '1.75rem', borderBottom: '1px solid var(--border)' }}>
+                                <h3 style={{ marginBottom: 0 }}>Maiores Devedores por Grupo (Top 15)</h3>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Visão total consolidada.</p>
+                            </div>
+                            <div style={{ flex: 1, overflowY: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--surface)', backdropFilter: 'blur(10px)', zIndex: 10 }}>
+                                        <tr>
+                                            <th style={{ padding: '1rem 1.75rem', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Devedor / Grupo Econômico</th>
+                                            <th style={{ padding: '1rem 1.75rem', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'right' }}>Dívida Existente</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {topDevedores.map((dev, idx) => (
+                                            <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                <td style={{ padding: '1rem 1.75rem', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    {dev.cliente.includes('(Grupo)') ? (
+                                                        <span style={{ background: '#e0e7ff', color: '#4f46e5', fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.3rem', fontWeight: 700, letterSpacing: '0.05em' }}>GRUPO</span>
+                                                    ) : (
+                                                        <span style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.3rem', fontWeight: 700, letterSpacing: '0.05em' }}>CLIENTE</span>
+                                                    )}
+                                                    {dev.cliente.replace(' (Grupo)', '')}
+                                                </td>
+                                                <td style={{ padding: '1rem 1.75rem', textAlign: 'right' }}>
+                                                    <div style={{ color: 'var(--text-main)', fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{formatCurrency(dev.valorDevido)}</div>
+                                                    <div style={{ width: '100%', backgroundColor: 'var(--surface-hover)', height: '6px', borderRadius: '100px', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
+                                                        <div
+                                                            style={{
+                                                                backgroundColor: idx < 3 ? '#e11d48' : '#d97706',
+                                                                height: '100%',
+                                                                borderRadius: '100px',
+                                                                width: `${Math.min((dev.valorDevido / (topDevedores[0]?.valorDevido || 1)) * 100, 100)}%`
+                                                            }}
+                                                        ></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {topDevedores.length === 0 && (
+                                            <tr>
+                                                <td colSpan={2} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                                    Nenhum risco detectado. Importe o fechamento via painel de Importação.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                    <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer>
-                            <PieChart>
-                                <Pie
-                                    data={pieData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={70}
-                                    outerRadius={100}
-                                    paddingAngle={3}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {pieData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={renderTooltipContent} />
-                                <Legend layout="vertical" verticalAlign="middle" align="right"
-                                    formatter={(value, entry: any) => <span style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>{value}</span>}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                <div className="chart-container">
-                    <div className="chart-header">
-                        <div className="chart-title-group">
-                            <h3>Concentração Percentual</h3>
-                            <p>Proporção do Top 10 vs Restante da Carteira</p>
-                        </div>
-                    </div>
-                    <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer>
-                            <BarChart data={pieData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={true} vertical={false} />
-                                <XAxis type="number" stroke="#94a3b8" tickFormatter={(val: any) => `${(val / 1000).toFixed(0)}k`} />
-                                <YAxis dataKey="name" type="category" stroke="#94a3b8" width={90} tick={{ fontSize: 11 }} />
-                                <Tooltip content={renderTooltipContent} cursor={{ fill: '#334155', opacity: 0.4 }} />
-                                <Bar dataKey="value" name="Dívida" radius={[0, 4, 4, 0]}>
-                                    {pieData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
+                </>
+            )}
         </div>
     );
 };
+
+export default Inadimplencia;

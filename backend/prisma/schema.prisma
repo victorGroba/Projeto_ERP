@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -11,108 +11,53 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
-  name      String
+  name      String?
   role      String   @default("ADMIN")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model GestaoContas {
-  id             String   @id @default(uuid())
-  nomeFilial     String   // "Rio de Janeiro", "São Paulo"
-  clientId       String
-  clientSecret   String
-  accessToken    String?
-  refreshToken   String?
-  tokenExpiresAt DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
-  invoices         Invoice[]
-  accountsPayable  AccountsPayable[]
-  accountsReceivale AccountsReceivable[]
-}
+// ==========================================
+// MODELOS DE INGESTÃO VIA CSV (ETL)
+// ==========================================
 
-model GruposEconomicos {
-  id          String   @id @default(uuid())
-  nome        String   // Ex: Rede Sodexo, McDonald's
-  createdAt   DateTime @default(now())
-  clientes    DeParaClientes[]
-}
-
-model DeParaClientes {
-  clienteIdContaAzul String @id
-  nomeOriginal       String
-  grupoEconomicoId   String?
-  grupoEconomico     GruposEconomicos? @relation(fields: [grupoEconomicoId], references: [id])
-  segmentoTipo       String // "PUB" para Público, "PRI" para Privado
-  
-  // Relações com dados financeiros
-  snapshotsRecebiveis SnapshotsRecebiveis[]
-  invoices            Invoice[]
-  accountsReceivable  AccountsReceivable[]
-}
-
-model Invoice {
+model Lancamento {
   id            String   @id @default(uuid())
-  invoiceNumber String   @unique
-  issueDate     DateTime
-  grossValue    Float    // Valor Bruto = Prioridade 1
-  clientId      String
-  client        DeParaClientes @relation(fields: [clientId], references: [clienteIdContaAzul])
-  accountId     String
-  account       GestaoContas @relation(fields: [accountId], references: [id])
+  tipo          String   @default("DESPESA") // "RECEITA" ou "DESPESA"
+  descricao     String?
+  categoria     String?
+  centroDeCusto String?
+  contaBancaria String?  // p.ex: BB, XP, BTG
+  dataPagamento DateTime
+  valor         Float
+  fornecedor    String?
   createdAt     DateTime @default(now())
 }
 
-model AccountsReceivable {
-  id            String   @id @default(uuid())
-  dueDate       DateTime
-  value         Float
-  status        String   // Vencido, A Vencer, Pago
-  clientId      String
-  client        DeParaClientes @relation(fields: [clientId], references: [clienteIdContaAzul])
-  accountId     String
-  account       GestaoContas @relation(fields: [accountId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-model SnapshotsRecebiveis {
+model ContaReceber {
   id              String   @id @default(uuid())
-  dataReferencia  DateTime // A "foto" semanal da dívida
-  clienteId       String
-  cliente         DeParaClientes @relation(fields: [clienteId], references: [clienteIdContaAzul])
-  statusFatura    String   // Vencido, a Vencer, Paga
+  cliente         String
+  grupo           String?  // Agrupar clientes do mesmo grupo econômico (ex: franquias)
+  dataCompetencia DateTime?
+  dataVencimento  DateTime
   valor           Float
-  filialId        String
-  criadoEm        DateTime @default(now())
+  status          String   // Vencido, A Vencer, Recebido
+  descricao       String?
+  numeroNotaFiscal String?
+  createdAt       DateTime @default(now())
 }
 
-model CostCenter {
-  id        String   @id @default(uuid())
-  name      String   @unique // Microbiologia, Financeiro, etc
-  expenses  AccountsPayable[]
+model SaldoBancario {
+  id          String   @id @default(uuid())
+  instituicao String
+  saldo       Float
+  data        DateTime
+  createdAt   DateTime @default(now())
 }
 
-model Category {
-  id        String   @id @default(uuid())
-  name      String   @unique // Salários, Transportes, etc
-  expenses  AccountsPayable[]
-}
-
-model AccountsPayable {
-  id           String   @id @default(uuid())
-  dueDate      DateTime
-  value        Float
-  status       String   // PAGO, A_PAGAR
-  description  String
-  costCenterId String?
-  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
-  categoryId   String?
-  category     Category? @relation(fields: [categoryId], references: [id])
-  accountId    String
-  account      GestaoContas @relation(fields: [accountId], references: [id])
-  isTransfer   Boolean  @default(false) // For RJ/SP coligadas operations
-  createdAt    DateTime @default(now())
+// Armazena tokens OAuth e outras configurações persistentes
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
