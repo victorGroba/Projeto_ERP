@@ -22,7 +22,21 @@ const Configuracoes: React.FC = () => {
     const [message, setMessage] = useState('');
     const [copied, setCopied] = useState(false);
 
-    useEffect(() => { fetchStatus(); }, []);
+    useEffect(() => {
+        fetchStatus();
+        // Detecta o retorno do fluxo automático (Conta Azul → /api/oauth/callback → cá)
+        const params = new URLSearchParams(window.location.search);
+        const oauth = params.get('oauth');
+        if (oauth === 'success') {
+            setStep('done');
+            setMessage('Conexão estabelecida com sucesso!');
+            window.history.replaceState({}, '', '/configuracoes');
+        } else if (oauth === 'error') {
+            setStep('error');
+            setMessage(`Falha ao conectar: ${params.get('msg') || 'erro desconhecido'}`);
+            window.history.replaceState({}, '', '/configuracoes');
+        }
+    }, []);
 
     const fetchStatus = async () => {
         try {
@@ -34,10 +48,15 @@ const Configuracoes: React.FC = () => {
     const handleConnect = async () => {
         try {
             const res = await axios.get(`${API}/api/oauth/url`);
+            if (res.data.automatico) {
+                // Fluxo automático: redireciona o navegador. A Conta Azul devolve
+                // para /api/oauth/callback, que troca o código e volta pra cá.
+                window.location.href = res.data.url;
+                return;
+            }
+            // Fluxo manual (dev): mostra a URL + campo pra colar o código
             setAuthUrl(res.data.url);
             setStep('waiting_code');
-            // Tenta abrir automaticamente; se for bloqueado (preview/sandbox),
-            // o usuário usa o link/botão de copiar que aparece no passo 1.
             try { window.open(res.data.url, '_blank', 'noopener'); } catch { /* bloqueado — ok */ }
         } catch {
             setStep('error');
