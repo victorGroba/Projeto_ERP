@@ -139,6 +139,7 @@ async function syncReceitas(api: ContaAzulAPI, inicio: string, fim: string, repl
             return {
                 cliente: item.cliente?.nome || 'Sem cliente',
                 grupo: item.centros_de_custo?.[0]?.nome || 'Sem Grupo',
+                categoria: item.categorias?.[0]?.nome || 'Outras Receitas',
                 dataCompetencia: item.data_competencia ? parseApiDate(item.data_competencia) : null,
                 dataVencimento: dataVenc,
                 valor: Math.abs(

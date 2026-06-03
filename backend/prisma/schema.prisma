@@ -39,6 +39,7 @@ model ContaReceber {
   id              String   @id @default(uuid())
   cliente         String
   grupo           String?  // Agrupar clientes do mesmo grupo econômico (ex: franquias)
+  categoria       String?  // Tipo da receita (Serviços, Financeira, Venda Veículo...)
   dataCompetencia DateTime?
   dataVencimento  DateTime
   valor           Float

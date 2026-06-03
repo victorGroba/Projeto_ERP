@@ -5,6 +5,7 @@ import { getEvolucaoMensal } from '../controllers/evolucaoMensalController';
 import { getDistribuicaoLucros } from '../controllers/distribuicaoLucrosController';
 import { getCaixaBancos } from '../controllers/caixaBancosController';
 import { getDetalhePorCC } from '../controllers/detalheController';
+import { getResultadoMensal, getReceitasPorTipo, getOutrasSaidas } from '../controllers/resultadoController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -26,5 +27,10 @@ router.get('/inadimplencia/aging', authMiddleware, getInadimplenciaAging);
 
 // Endpoint para o Detalhamento por Centro de Custo (accordion)
 router.get('/despesas/detalhe-por-cc', authMiddleware, getDetalhePorCC);
+
+// Endpoints do bloco de Resultado (replicam a planilha GRAFICOS)
+router.get('/resultado/mensal', authMiddleware, getResultadoMensal);
+router.get('/resultado/receitas-tipo', authMiddleware, getReceitasPorTipo);
+router.get('/resultado/outras-saidas', authMiddleware, getOutrasSaidas);
 
 export default router;
