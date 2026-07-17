@@ -229,20 +229,30 @@ async function syncDespesas(api: ContaAzulAPI, inicio: string, fim: string, repl
     const quitados = items.filter(isDespesaReal);
     logDiagnosticoDatas(quitados, inicio, fim);
 
-    const records = quitados
-        .map((item: any) => ({
-            tipo: 'DESPESA',
-            descricao: item.descricao || 'Sem descrição',
-            categoria: item.categorias?.[0]?.nome || 'Sem Categoria',
-            centroDeCusto: item.centros_de_custo?.[0]?.nome || 'Geral',
-            contaBancaria: item.conta_financeira?.nome || 'N/A',
-            // Prefere a data real de pagamento se a API devolver o campo; senão cai no
-            // comportamento antigo (vencimento/competência) sem quebrar nada.
-            dataPagamento: parseApiDate(item.data_pagamento || item.data_vencimento || item.data_competencia),
-            valor: valorPagoDoItem(item),
-            fornecedor: item.fornecedor?.nome || 'Diverso',
-        }))
-        .filter((r: any) => r.valor > 0);
+    const records: any[] = [];
+    for (const item of quitados) {
+        const valorTotal = valorPagoDoItem(item);
+        if (valorTotal <= 0) continue;
+
+        const ccs = item.centros_de_custo && item.centros_de_custo.length > 0 
+            ? item.centros_de_custo 
+            : [{ nome: 'Sem centro de custo' }];
+        
+        const valorRateado = valorTotal / ccs.length;
+
+        for (const cc of ccs) {
+            records.push({
+                tipo: 'DESPESA',
+                descricao: item.descricao || 'Sem descrição',
+                categoria: item.categorias?.[0]?.nome || 'Diversos',
+                centroDeCusto: cc.nome,
+                contaBancaria: item.conta_financeira?.nome || 'N/A',
+                dataPagamento: parseApiDate(item.data_pagamento || item.data_vencimento || item.data_competencia),
+                valor: valorRateado,
+                fornecedor: item.fornecedor?.nome || 'Diverso',
+            });
+        }
+    }
 
     console.log(`[Sync] Despesas: ${records.length}/${items.length} títulos quitados (de um total de ${items.length} buscados no período).`);
 

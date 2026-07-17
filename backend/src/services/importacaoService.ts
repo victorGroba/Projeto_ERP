@@ -124,9 +124,8 @@ export class ImportacaoService {
                     // Unpivot Matrix (Análise de Pagamentos)
                     for (const row of rows) {
                         const categoria = this.getFlexValue(row, ['categoria']) || 'Diversos';
-                        if (categoria.toLowerCase().includes('total do per')) continue;
-                        
                         const centro = this.getFlexValue(row, ['centro_de_custo', 'centro_custo']) || 'Geral';
+                        if (categoria.toLowerCase().includes('total do per') || centro.toLowerCase().includes('total do per')) continue;
                         
                         for (const monthHeader of monthHeaders) {
                             const valor = this.parseCurrency(row[monthHeader]);
@@ -181,7 +180,20 @@ export class ImportacaoService {
                 console.log(`[ETL] Registros validados para DESPESAS: ${registrosValidos.length}`);
                 
                 if (registrosValidos.length > 0) {
-                    await prisma.lancamento.deleteMany({ where: { tipo: 'DESPESA' } }); // Full replace for Despesas only
+                    const minDate = new Date(Math.min(...registrosValidos.map(r => r.dataPagamento.getTime())));
+                    const maxDate = new Date(Math.max(...registrosValidos.map(r => r.dataPagamento.getTime())));
+                    
+                    const start = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
+                    const end = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth() + 1, 0, 23, 59, 59));
+
+                    console.log(`[ETL] Substituindo DESPESAS no período: ${start.toISOString()} até ${end.toISOString()}`);
+                    
+                    await prisma.lancamento.deleteMany({ 
+                        where: { 
+                            tipo: 'DESPESA',
+                            dataPagamento: { gte: start, lte: end }
+                        } 
+                    });
                     const result = await prisma.lancamento.createMany({ data: registrosValidos });
                     inseridos = result.count;
                 }

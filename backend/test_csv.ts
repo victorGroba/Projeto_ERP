@@ -1,15 +1,15 @@
 import { ImportacaoService } from './src/services/importacaoService';
 import fs from 'fs';
+import path from 'path';
 
-const mockCsv = `Categoria;Centro de Custo;jan./25;fev./25
-Serviços em Geral;Marketing;1.500,00;1.200,50
-Agua;Geral;150,00;160,00`;
-
-fs.writeFileSync('test.csv', mockCsv, 'utf8');
+const filePath = path.join(__dirname, '../relatorios-conta-azul/detalhe_analise_de_pagamentos (1).csv');
 
 async function test() {
     try {
-        const result = await ImportacaoService.processarCSV('test.csv', 'DESPESAS');
+        console.log('Importando:', filePath);
+        // Cria cópia pra não deletar original
+        fs.copyFileSync(filePath, 'temp.csv');
+        const result = await ImportacaoService.processarCSV('temp.csv', 'DESPESAS');
         console.log('Success:', result);
     } catch (e) {
         console.error('Error during CSV process:', e);
