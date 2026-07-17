@@ -104,7 +104,7 @@ const EvolucaoMensal: React.FC = () => {
 
             {isLoading ? (
                 <div className="loading-state">
-                    <div className="animate-spin" style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid rgba(59,130,246,0.2)', borderTopColor: '#3b82f6' }} />
+                    <div className="animate-spin" style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid rgba(37,99,235,0.2)', borderTopColor: 'var(--primary)' }} />
                     <span style={{ marginLeft: '1rem' }}>Carregando análise financeira...</span>
                 </div>
             ) : (
@@ -112,7 +112,7 @@ const EvolucaoMensal: React.FC = () => {
                     {/* ── KPIs Evolução Mensal ── */}
                     <div className="metrics-grid" style={{ marginBottom: '2rem' }}>
                         <div className="kpi-card highlight">
-                            <div className="kpi-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                            <div className="kpi-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
                                 <BarChart2 size={28} />
                             </div>
                             <div className="kpi-content">
@@ -130,12 +130,12 @@ const EvolucaoMensal: React.FC = () => {
                             </div>
                         </div>
                         <div className="kpi-card">
-                            <div className="kpi-icon" style={{ background: variacaoGeral <= 0 ? '#ecfdf5' : '#fff1f2', color: variacaoGeral <= 0 ? '#059669' : '#e11d48' }}>
+                            <div className="kpi-icon" style={{ background: variacaoGeral <= 0 ? 'var(--success-light)' : 'var(--danger-light)', color: variacaoGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                 {variacaoGeral <= 0 ? <TrendingDown size={28} /> : <TrendingUp size={28} />}
                             </div>
                             <div className="kpi-content">
                                 <h4>Variação vs {year - 1}</h4>
-                                <h2 style={{ color: variacaoGeral <= 0 ? '#059669' : '#e11d48' }}>
+                                <h2 style={{ color: variacaoGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                     {variacaoGeral > 0 ? '+' : ''}{variacaoGeral.toFixed(1)}%
                                 </h2>
                             </div>
@@ -159,19 +159,17 @@ const EvolucaoMensal: React.FC = () => {
                         </div>
                         <div style={{ width: '100%', height: 360, marginTop: '1rem' }}>
                             <ResponsiveContainer>
-                                <ComposedChart data={evolData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                <ComposedChart data={evolData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }} barGap={4} barCategoryGap="28%">
+                                    <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="mes" tick={{ fill: 'var(--text-muted)', fontSize: 13 }} axisLine={false} tickLine={false} />
-                                    <YAxis yAxisId="left" tickFormatter={formatK} width={85} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis yAxisId="right" orientation="right" tickFormatter={formatK} width={85} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <YAxis tickFormatter={formatK} width={85} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
                                     <Tooltip
                                         formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
                                         contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '12px', color: 'var(--text-main)' }}
                                     />
                                     <Legend wrapperStyle={{ paddingTop: 16 }} />
-                                    <Bar yAxisId="left" dataKey="anoAnterior" name={`${year - 1}`} fill="#94a3b8" radius={[6, 6, 0, 0]} barSize={20} />
-                                    <Bar yAxisId="left" dataKey="anoAtual" name={`${year}`} fill="#2563eb" radius={[6, 6, 0, 0]} barSize={20} />
-                                    <Line yAxisId="right" type="monotone" dataKey="variacao" name="Variação R$" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 4, fill: '#f59e0b' }} strokeDasharray="5 3" />
+                                    <Bar dataKey="anoAnterior" name={`${year - 1}`} fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                                    <Bar dataKey="anoAtual" name={`${year}`} fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
@@ -258,7 +256,7 @@ const EvolucaoMensal: React.FC = () => {
                                     })}
                                     <div style={{ marginTop: '0.5rem', padding: '0.875rem', background: 'var(--background)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Saldo Líquido (Rec. − Desp.)</span>
-                                        <span style={{ fontSize: '1rem', fontWeight: 700, color: saldoLiquido >= 0 ? '#059669' : '#dc2626' }}>
+                                        <span style={{ fontSize: '1rem', fontWeight: 700, color: saldoLiquido >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                             {saldoLiquido >= 0 ? '+' : ''}{formatCurrency(saldoLiquido)}
                                         </span>
                                     </div>
@@ -276,7 +274,7 @@ const EvolucaoMensal: React.FC = () => {
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase' }}>Resultado do Ano</div>
-                                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: resultadoAno >= 0 ? '#059669' : '#dc2626' }}>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: resultadoAno >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                     {resultadoAno >= 0 ? '+' : ''}{formatCurrency(resultadoAno)}
                                 </div>
                             </div>
@@ -286,15 +284,15 @@ const EvolucaoMensal: React.FC = () => {
                         </p>
                         <div style={{ width: '100%', height: 320 }}>
                             <ResponsiveContainer>
-                                <ComposedChart data={resultadoMensal} margin={{ top: 16, right: 16, left: 8, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                <ComposedChart data={resultadoMensal} margin={{ top: 16, right: 16, left: 8, bottom: 0 }} barGap={4} barCategoryGap="28%">
+                                    <CartesianGrid vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="mes" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
                                     <YAxis tickFormatter={formatK} width={70} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
                                     <Tooltip formatter={(v: any, n: any) => [formatCurrency(Number(v)), n]} contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '10px', fontSize: '0.8125rem' }} />
                                     <Legend wrapperStyle={{ paddingTop: 12, fontSize: '0.8125rem' }} />
-                                    <Bar dataKey="receitas" name="Receitas" fill="#059669" radius={[4, 4, 0, 0]} barSize={14} />
-                                    <Bar dataKey="despesas" name="Despesas" fill="#dc2626" radius={[4, 4, 0, 0]} barSize={14} />
-                                    <Line dataKey="resultado" name="Resultado" type="monotone" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 3, fill: '#2563eb' }} />
+                                    <Bar dataKey="receitas" name="Receitas" fill="var(--success)" radius={[4, 4, 0, 0]} maxBarSize={16} />
+                                    <Bar dataKey="despesas" name="Despesas" fill="var(--danger)" radius={[4, 4, 0, 0]} maxBarSize={16} />
+                                    <Line dataKey="resultado" name="Resultado" type="monotone" stroke="var(--primary)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--primary)' }} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
@@ -367,7 +365,7 @@ const EvolucaoMensal: React.FC = () => {
                                             <span style={{ fontSize: linha.forte ? '0.875rem' : '0.8125rem', fontWeight: linha.forte ? 700 : 500, color: linha.forte ? 'var(--primary)' : 'var(--text-muted)' }}>
                                                 {linha.label}
                                             </span>
-                                            <span style={{ fontSize: linha.forte ? '0.9375rem' : '0.8125rem', fontWeight: linha.forte ? 800 : 600, color: linha.valor >= 0 ? (linha.forte ? '#059669' : 'var(--text-main)') : '#dc2626' }}>
+                                            <span style={{ fontSize: linha.forte ? '0.9375rem' : '0.8125rem', fontWeight: linha.forte ? 800 : 600, color: linha.valor >= 0 ? (linha.forte ? 'var(--success)' : 'var(--text-main)') : 'var(--danger)' }}>
                                                 {linha.valor >= 0 ? '' : '−'}{formatCurrency(Math.abs(linha.valor))}
                                             </span>
                                         </div>

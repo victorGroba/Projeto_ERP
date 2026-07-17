@@ -5,15 +5,19 @@ const prisma = new PrismaClient();
 
 export const getCaixaBancos = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { year } = req.query;
+        const { year, de, ate } = req.query;
         const targetYear = year ? parseInt(year as string, 10) : new Date().getFullYear();
 
-        // Receitas do ano por status (do ContaReceber)
+        // Período: usa de/ate se fornecidos, senão o ano inteiro
+        const dataInicio = de ? new Date(`${de}T00:00:00`) : new Date(targetYear, 0, 1);
+        const dataFim    = ate ? new Date(`${ate}T23:59:59`) : new Date(targetYear + 1, 0, 1);
+
+        // Receitas do período por status (do ContaReceber)
         const receitas = await prisma.contaReceber.findMany({
             where: {
                 dataVencimento: {
-                    gte: new Date(targetYear, 0, 1),
-                    lt: new Date(targetYear + 1, 0, 1)
+                    gte: dataInicio,
+                    lte: dataFim,
                 }
             },
             select: { status: true, valor: true }
@@ -37,14 +41,11 @@ export const getCaixaBancos = async (req: Request, res: Response): Promise<void>
 
         const totalReceitas = chartData.reduce((a, b) => a + b.valor, 0);
 
-        // Despesas do ano para comparação
+        // Despesas do mesmo período para comparação
         const { _sum: sumDesp } = await prisma.lancamento.aggregate({
             where: {
                 tipo: 'DESPESA',
-                dataPagamento: {
-                    gte: new Date(targetYear, 0, 1),
-                    lt: new Date(targetYear + 1, 0, 1)
-                }
+                dataPagamento: { gte: dataInicio, lte: dataFim }
             },
             _sum: { valor: true }
         });

@@ -12,6 +12,9 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
         const dataInicio = de ? new Date(de as string) : new Date(targetYear, 0, 1);
         const dataFim    = ate ? new Date(ate as string) : new Date(targetYear + 1, 0, 1);
 
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
         const pendentes = await prisma.contaReceber.findMany({
             where: {
                 status: { notIn: ['Recebido', 'Baixado', 'Pago'] },
@@ -22,7 +25,6 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
             }
         });
 
-        const hoje = new Date();
         const agingBuckets = {
             a_vencer: 0,
             ate_30: 0,
@@ -35,16 +37,15 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
 
         pendentes.forEach(conta => {
             const valor = conta.valor;
+            const dataVenc = new Date(conta.dataVencimento);
+            dataVenc.setHours(0, 0, 0, 0);
 
-            // Usa o STATUS da Conta Azul como fonte da verdade (A Vencer vs Vencido),
-            // garantindo que os totais batam exatamente com o ERP.
-            if (conta.status === 'A Vencer') {
+            // Inadimplente real = vencimento anterior a hoje
+            if (dataVenc >= hoje) {
                 agingBuckets.a_vencer += valor;
                 return;
             }
 
-            // Vencido: distribui por faixa de dias de atraso (apenas para detalhamento do gráfico)
-            const dataVenc = new Date(conta.dataVencimento);
             const diffDias = Math.ceil((hoje.getTime() - dataVenc.getTime()) / (1000 * 60 * 60 * 24));
 
             if (diffDias <= 30)      agingBuckets.ate_30     += valor;
@@ -52,8 +53,8 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
             else if (diffDias <= 90) agingBuckets.de_61_a_90 += valor;
             else                     agingBuckets.mais_de_90 += valor;
 
-            const key = (conta as any).grupo
-                ? `${(conta as any).grupo} (Grupo)`
+            const key = conta.grupo
+                ? `${conta.grupo} (Grupo)`
                 : (conta.cliente || 'Sem Cliente');
             rankingDevedores[key] = (rankingDevedores[key] || 0) + valor;
         });

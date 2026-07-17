@@ -68,9 +68,14 @@ export class ContaAzulAPI {
     getRefreshTokenValue() { return this.refreshToken; }
 
     /**
-     * GET com retry automático (refresh se 401)
+     * GET com retry automático (refresh se 401; backoff se erro transitório).
+     * Importante: em erro transitório esgotado, LANÇA em vez de devolver null —
+     * um retorno null era tratado por paginateAll() como "acabaram as páginas",
+     * truncando a sincronização silenciosamente (e sub-contando despesas/receitas
+     * sem avisar ninguém) quando na verdade era só uma falha de rede/503 pontual.
      */
-    private async getWithRetry(url: string): Promise<any> {
+    private async getWithRetry(url: string, tentativa: number = 1): Promise<any> {
+        const MAX_TENTATIVAS = 4;
         try {
             const response = await axios.get(url, { headers: this.getHeaders() });
             return response.data;
@@ -83,8 +88,19 @@ export class ContaAzulAPI {
                     return retryResponse.data;
                 }
             }
-            console.warn('[ContaAzulAPI] Erro:', url, error.response?.status, error.response?.data?.error || error.message);
-            return null;
+
+            const status = error.response?.status;
+            const transitorio = !status || status === 429 || status >= 500; // sem resposta = erro de rede
+            if (transitorio && tentativa < MAX_TENTATIVAS) {
+                const esperaMs = 1000 * 2 ** (tentativa - 1); // 1s, 2s, 4s
+                console.warn(`[ContaAzulAPI] Erro transitório (tentativa ${tentativa}/${MAX_TENTATIVAS}), retentando em ${esperaMs}ms:`, url, status || error.message);
+                await new Promise(r => setTimeout(r, esperaMs));
+                return this.getWithRetry(url, tentativa + 1);
+            }
+
+            console.error('[ContaAzulAPI] ❌ Erro definitivo (sem mais retries):', url, status, error.message);
+            if (error.response?.data) console.error('[ContaAzulAPI] Corpo da resposta de erro:', JSON.stringify(error.response.data));
+            throw error;
         }
     }
 
@@ -140,6 +156,8 @@ export class ContaAzulAPI {
         dataVencimentoFim?: string;
         dataCompetenciaInicio?: string;
         dataCompetenciaFim?: string;
+        dataPagamentoInicio?: string;
+        dataPagamentoFim?: string;
         pagina?: number;
         tamanhoPagina?: number;
     } = {}): Promise<any> {
@@ -148,6 +166,8 @@ export class ContaAzulAPI {
         if (params.dataVencimentoFim) queryParams.append('data_vencimento_ate', params.dataVencimentoFim);
         if (params.dataCompetenciaInicio) queryParams.append('data_competencia_de', params.dataCompetenciaInicio);
         if (params.dataCompetenciaFim) queryParams.append('data_competencia_ate', params.dataCompetenciaFim);
+        if (params.dataPagamentoInicio) queryParams.append('data_pagamento_de', params.dataPagamentoInicio);
+        if (params.dataPagamentoFim) queryParams.append('data_pagamento_ate', params.dataPagamentoFim);
         queryParams.append('pagina', String(params.pagina || 1));
         queryParams.append('tamanhoPagina', String(params.tamanhoPagina || 200));
 

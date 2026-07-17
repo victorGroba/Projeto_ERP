@@ -121,11 +121,11 @@ const Configuracoes: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1rem', background: 'var(--background)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         {status?.connected
-                            ? <CheckCircle2 size={18} color="#059669" />
-                            : <AlertCircle size={18} color="#d97706" />
+                            ? <CheckCircle2 size={18} color="var(--success)" />
+                            : <AlertCircle size={18} color="var(--warning)" />
                         }
                         <div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: status?.connected ? '#059669' : '#d97706' }}>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: status?.connected ? 'var(--success)' : 'var(--warning)' }}>
                                 {status?.connected ? 'Conectado' : 'Não conectado'}
                             </div>
                             {status?.updatedAt && (
@@ -150,10 +150,10 @@ const Configuracoes: React.FC = () => {
                         onClick={handleConnect}
                         style={{
                             width: '100%', padding: '0.875rem', borderRadius: 'var(--radius-md)',
-                            background: '#2563eb', color: '#fff', fontWeight: 600, fontSize: '0.9375rem',
+                            background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.9375rem',
                             border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
                             justifyContent: 'center', gap: '0.5rem',
-                            boxShadow: '0 4px 12px rgba(37,99,235,0.35)',
+                            boxShadow: '0 4px 12px rgba(37,99,235,0.25)',
                         }}
                     >
                         <Zap size={16} />
@@ -163,11 +163,11 @@ const Configuracoes: React.FC = () => {
 
                 {step === 'waiting_code' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ padding: '1rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-md)' }}>
-                            <p style={{ fontSize: '0.875rem', color: '#1e40af', fontWeight: 600, marginBottom: '0.5rem' }}>
+                        <div style={{ padding: '1rem', background: 'var(--primary-light)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 'var(--radius-md)' }}>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 600, marginBottom: '0.5rem' }}>
                                 Passo 1 — Abra o link de autenticação
                             </p>
-                            <p style={{ fontSize: '0.8125rem', color: '#3b82f6', lineHeight: 1.5 }}>
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--primary)', lineHeight: 1.5 }}>
                                 Clique no botão abaixo (abre em nova aba). Faça login no Conta Azul. Você será
                                 redirecionado para <strong>contaazul.com?code=XXXXXX</strong> — copie o valor do <code>code</code>.
                             </p>
@@ -181,7 +181,7 @@ const Configuracoes: React.FC = () => {
                                 rel="noreferrer"
                                 style={{
                                     flex: 1, padding: '0.75rem', borderRadius: 'var(--radius-md)',
-                                    background: '#2563eb', color: '#fff', fontWeight: 600, fontSize: '0.875rem',
+                                    background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.875rem',
                                     textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                                 }}
                             >
@@ -225,7 +225,7 @@ const Configuracoes: React.FC = () => {
                                     disabled={!code.trim()}
                                     style={{
                                         padding: '0.625rem 1.25rem', borderRadius: 'var(--radius-sm)',
-                                        background: code.trim() ? '#2563eb' : 'var(--background)',
+                                        background: code.trim() ? 'var(--primary)' : 'var(--background)',
                                         color: code.trim() ? '#fff' : 'var(--text-muted)',
                                         border: code.trim() ? 'none' : '1px solid var(--border)',
                                         fontWeight: 600, fontSize: '0.875rem', cursor: code.trim() ? 'pointer' : 'not-allowed',
@@ -252,9 +252,9 @@ const Configuracoes: React.FC = () => {
 
                 {step === 'done' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', background: '#f0fdf4', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-md)' }}>
-                            <CheckCircle2 size={20} color="#059669" />
-                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#059669' }}>{message}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', background: 'var(--success-light)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)' }}>
+                            <CheckCircle2 size={20} color="var(--success)" />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--success)' }}>{message}</span>
                         </div>
                         <button onClick={handleReset} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, padding: 0, textAlign: 'left' }}>
                             Reconectar outra conta
@@ -264,9 +264,9 @@ const Configuracoes: React.FC = () => {
 
                 {step === 'error' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 'var(--radius-md)' }}>
-                            <AlertCircle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: 1 }} />
-                            <span style={{ fontSize: '0.875rem', color: '#dc2626' }}>{message}</span>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem', background: 'var(--danger-light)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)' }}>
+                            <AlertCircle size={18} color="var(--danger)" style={{ flexShrink: 0, marginTop: 1 }} />
+                            <span style={{ fontSize: '0.875rem', color: 'var(--danger)' }}>{message}</span>
                         </div>
                         <button onClick={handleReset} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, padding: 0 }}>
                             Tentar novamente
@@ -285,7 +285,7 @@ const Configuracoes: React.FC = () => {
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <ShieldCheck size={20} color="#2563eb" />
+                        <ShieldCheck size={20} color="var(--primary)" />
                         <div>
                             <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0, color: 'var(--text-main)' }}>Auditoria de Dados</h3>
                             <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
@@ -385,8 +385,8 @@ const Configuracoes: React.FC = () => {
                                             {l.api !== null ? l.api.toLocaleString('pt-BR') : '—'}
                                         </span>
                                         <span style={{ textAlign: 'right' }}>
-                                            {l.confere === true  && <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#059669' }}>✓ Igual</span>}
-                                            {l.confere === false && <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#dc2626' }}>✗ Difere</span>}
+                                            {l.confere === true  && <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--success)' }}>✓ Igual</span>}
+                                            {l.confere === false && <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--danger)' }}>✗ Difere</span>}
                                             {l.confere === null  && <span style={{ fontSize: '0.8125rem', color: 'var(--text-subtle)' }}>—</span>}
                                         </span>
                                     </div>
@@ -399,7 +399,7 @@ const Configuracoes: React.FC = () => {
                                     </div>
                                     {/* Sublinhas (status breakdown) */}
                                     {l.sublinhas?.map((s: any) => (
-                                        <div key={s.label} style={{ display: 'grid', gridTemplateColumns: '1fr 240px 80px', padding: '0.4rem 1rem 0.4rem 2rem', background: '#fafafa', gap: '0.5rem', borderTop: '1px solid var(--border)', alignItems: 'center' }}>
+                                        <div key={s.label} style={{ display: 'grid', gridTemplateColumns: '1fr 240px 80px', padding: '0.4rem 1rem 0.4rem 2rem', background: 'var(--background)', gap: '0.5rem', borderTop: '1px solid var(--border)', alignItems: 'center' }}>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                                                 <ArrowRight size={11} /> {s.label}
                                             </span>
@@ -421,7 +421,7 @@ const Configuracoes: React.FC = () => {
             {/* ── Guia de verificação manual ── */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
                 <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <ArrowRight size={16} color="#2563eb" /> Como verificar manualmente no Conta Azul
+                    <ArrowRight size={16} color="var(--primary)" /> Como verificar manualmente no Conta Azul
                 </h3>
                 {[
                     {
