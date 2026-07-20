@@ -11,10 +11,11 @@ import EvolucaoMensal from './pages/EvolucaoMensal';
 import Configuracoes from './pages/Configuracoes';
 import DocumentacaoKPIs from './pages/DocumentacaoKPIs';
 import ApiContaAzul from './pages/ApiContaAzul';
+import HistoricoImportacoes from './pages/HistoricoImportacoes';
 import {
     LayoutDashboard, AlertTriangle, TrendingDown,
     LogOut, UploadCloud, LineChart, Settings, BookOpen,
-    PanelLeftClose, PanelLeftOpen, Plug,
+    PanelLeftClose, PanelLeftOpen, Plug, History
 } from 'lucide-react';
 import './index.css';
 
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
     { to: '/evolucao',      label: 'Análise Avançada', Icon: LineChart },
     { to: '/api-conta-azul', label: 'API',              Icon: Plug },
     { to: '/importacao',    label: 'Importação CSV',   Icon: UploadCloud },
+    { to: '/historico',     label: 'Histórico',        Icon: History },
     { to: '/configuracoes', label: 'Configurações',    Icon: Settings },
     { to: '/kpis',          label: 'Doc. KPIs',        Icon: BookOpen },
 ];
@@ -38,6 +40,7 @@ const PAGE_TITLES: Record<string, string> = {
     '/evolucao':       'Análise Avançada',
     '/api-conta-azul': 'Indicadores via API',
     '/importacao':     'Sincronização',
+    '/historico':      'Histórico de Importações',
     '/configuracoes':  'Configurações',
     '/kpis':           'Documentação de KPIs',
 };
@@ -119,6 +122,7 @@ function App() {
                             <Route path="/"             element={<VistaoGeral />} />
                             <Route path="/inadimplencia" element={<Inadimplencia />} />
                             <Route path="/importacao"   element={<Importacao />} />
+                            <Route path="/historico"    element={<HistoricoImportacoes />} />
                             <Route path="/despesas"     element={<Despesas />} />
                             <Route path="/evolucao"       element={<EvolucaoMensal />} />
                             <Route path="/api-conta-azul" element={<ApiContaAzul />} />

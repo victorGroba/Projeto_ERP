@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import csv from 'csv-parser';
 import { PrismaClient } from '@prisma/client';
 
@@ -194,7 +195,20 @@ export class ImportacaoService {
                             dataPagamento: { gte: start, lte: end }
                         } 
                     });
-                    const result = await prisma.lancamento.createMany({ data: registrosValidos });
+
+                    const historico = await prisma.historicoImportacao.create({
+                        data: {
+                            tipo: 'DESPESAS',
+                            arquivoNome: path.basename(filePath),
+                            dataInicio: start,
+                            dataFim: end,
+                            qtdRegistros: registrosValidos.length
+                        }
+                    });
+
+                    const registrosComImportacaoId = registrosValidos.map(r => ({ ...r, importacaoId: historico.id }));
+
+                    const result = await prisma.lancamento.createMany({ data: registrosComImportacaoId });
                     inseridos = result.count;
                 }
 
@@ -225,8 +239,33 @@ export class ImportacaoService {
                 console.log(`[ETL] Registros validados para RECEITAS: ${registros.length}`);
 
                 if (registros.length > 0) {
-                    await prisma.contaReceber.deleteMany(); // Full replace
-                    const result = await prisma.contaReceber.createMany({ data: registros });
+                    const minDate = new Date(Math.min(...registros.map(r => r.dataVencimento.getTime())));
+                    const maxDate = new Date(Math.max(...registros.map(r => r.dataVencimento.getTime())));
+                    
+                    const start = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
+                    const end = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth() + 1, 0, 23, 59, 59));
+
+                    console.log(`[ETL] Substituindo RECEITAS com vencimento no período: ${start.toISOString()} até ${end.toISOString()}`);
+                    
+                    await prisma.contaReceber.deleteMany({
+                        where: {
+                            dataVencimento: { gte: start, lte: end }
+                        }
+                    });
+
+                    const historico = await prisma.historicoImportacao.create({
+                        data: {
+                            tipo: 'RECEITAS',
+                            arquivoNome: path.basename(filePath),
+                            dataInicio: start,
+                            dataFim: end,
+                            qtdRegistros: registros.length
+                        }
+                    });
+
+                    const registrosComImportacaoId = registros.map(r => ({ ...r, importacaoId: historico.id }));
+
+                    const result = await prisma.contaReceber.createMany({ data: registrosComImportacaoId });
                     inseridos = result.count;
                 }
             } else {

@@ -33,6 +33,9 @@ model Lancamento {
   valor         Float
   fornecedor    String?
   createdAt     DateTime @default(now())
+
+  importacaoId  String?
+  importacao    HistoricoImportacao? @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
 }
 
 model ContaReceber {
@@ -47,6 +50,9 @@ model ContaReceber {
   descricao       String?
   numeroNotaFiscal String?
   createdAt       DateTime @default(now())
+
+  importacaoId    String?
+  importacao      HistoricoImportacao? @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
 }
 
 model SaldoBancario {
@@ -62,4 +68,18 @@ model AppConfig {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// Modelo para rastreio de importações
+model HistoricoImportacao {
+  id            String   @id @default(uuid())
+  tipo          String   // "DESPESAS" ou "RECEITAS"
+  arquivoNome   String?
+  dataInicio    DateTime?
+  dataFim       DateTime?
+  qtdRegistros  Int
+  createdAt     DateTime @default(now())
+  
+  lancamentos   Lancamento[]
+  contasReceber ContaReceber[]
 }
