@@ -163,7 +163,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 0 0.5rem;
+  padding: 0 0.4375rem;
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--text-main);
@@ -180,6 +180,82 @@
 
 .cmp-col.is-total .cmp-cell,
 .cmp-col.is-total .cmp-cat { font-weight: 800; }
+
+/* ── Tooltip ── */
+.cmp-tip {
+  position: fixed;
+  z-index: 60;
+  width: 264px;
+  padding: 0.625rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  animation: fadeIn 0.12s ease;
+}
+
+.cmp-tip-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.4375rem;
+  overflow-wrap: anywhere;
+}
+
+.cmp-tip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.1875rem 0;
+  font-size: 0.75rem;
+}
+
+.cmp-tip-row span {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cmp-tip-row i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cmp-tip-row strong {
+  color: var(--text-main);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cmp-tip-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.4375rem;
+  padding-top: 0.4375rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cmp-tip-foot strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cmp-tip-foot strong em { font-style: normal; opacity: 0.85; }
+.cmp-tip-foot strong.is-up   { color: var(--danger); }
+.cmp-tip-foot strong.is-down { color: var(--success); }
 
 /* Dica de rolagem */
 .cmp-scroll-hint {
