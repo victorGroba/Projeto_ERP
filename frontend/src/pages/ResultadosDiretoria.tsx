@@ -1,23 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
-} from 'recharts';
-import {
     Loader2, Presentation, ArrowUpRight, ArrowDownRight, Minus,
     CalendarRange, GitCompareArrows, BarChart3, Table2, Inbox,
 } from 'lucide-react';
+import ComparativoBarTable from '../components/ComparativoBarTable';
 import './Dashboard.css';
 import './ResultadosDiretoria.css';
 
 // ── Formatação ──────────────────────────────────────────────────────────────
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-const fmtCompact = (v: number) => {
-    const abs = Math.abs(v);
-    if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
-    if (abs >= 1_000) return `${(v / 1_000).toFixed(abs >= 10_000 ? 0 : 1)}k`;
-    return String(Math.round(v));
-};
 
 // ── Tipos e presets ─────────────────────────────────────────────────────────
 type PresetKey = 'this_month' | 'last_month' | 'last_3m' | 'last_6m' | 'ytd' | 'this_year' | 'last_year' | 'custom';
@@ -86,38 +78,6 @@ const Delta: React.FC<{ pct: number | null; size?: number }> = ({ pct, size = 13
             <Icon size={size} />
             {pct > 0 ? '+' : ''}{pct.toFixed(1)}%
         </span>
-    );
-};
-
-// ── Tooltip ─────────────────────────────────────────────────────────────────
-const ChartTooltip = ({ active, payload, label, labelA, labelB }: any) => {
-    if (!active || !payload?.length) return null;
-    const row = payload[0].payload;
-    const variacao: number | null = row.variacao;
-    return (
-        <div style={{
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            padding: '0.75rem 0.875rem', borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-lg)', minWidth: 230,
-        }}>
-            <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>{label}</div>
-            {[
-                { name: labelA, value: row.valorB, color: COLOR_CURRENT },
-                { name: labelB, value: row.valorA, color: COLOR_PREVIOUS },
-            ].map((e) => (
-                <div key={e.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '1.5rem', alignItems: 'center', padding: '0.1875rem 0', fontSize: '0.8125rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)' }}>
-                        <i style={{ width: 9, height: 9, borderRadius: 3, background: e.color, display: 'inline-block' }} />
-                        {e.name}
-                    </span>
-                    <strong style={{ color: 'var(--text-main)' }}>{fmt(e.value)}</strong>
-                </div>
-            ))}
-            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                <span>Variação</span>
-                <Delta pct={variacao} size={12} />
-            </div>
-        </div>
     );
 };
 
@@ -257,7 +217,10 @@ const ResultadosDiretoria: React.FC = () => {
     }, [activeCCData]);
 
     const maiorCategoria = categorias[0];
-    const chartHeight = Math.max(280, categorias.length * 56 + 40);
+
+    // Quando os números ficam grandes, o gráfico passa a exibir em milhares (como na planilha).
+    const escala = (maiorCategoria?.valorB || 0) >= 10_000 ? 1000 : 1;
+    const unidade = escala === 1000 ? '· Valores em milhares de R$' : '· Valores em R$';
 
     return (
         <div className="module-page res-page">
@@ -361,48 +324,29 @@ const ResultadosDiretoria: React.FC = () => {
                                 <div className="res-panel-head">
                                     <h3>
                                         <BarChart3 size={16} color="var(--primary)" />
-                                        {activeCCData.centroDeCusto}
-                                        <span className="res-hint">· {categorias.length} rubricas, maiores primeiro</span>
+                                        {activeCCData.centroDeCusto} · Custos / Despesas
+                                        <span className="res-hint">{unidade}</span>
                                     </h3>
                                     <div className="res-legend">
                                         <span><i style={{ background: COLOR_CURRENT }} />{labelA}</span>
                                         <span><i style={{ background: COLOR_PREVIOUS }} />{labelB}</span>
                                     </div>
                                 </div>
-                                <div className="res-chart-body" style={{ height: chartHeight }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={categorias}
-                                            layout="vertical"
-                                            margin={{ top: 4, right: 72, left: 8, bottom: 4 }}
-                                            barGap={4}
-                                            barCategoryGap="28%"
-                                        >
-                                            <CartesianGrid horizontal={false} stroke="var(--border)" strokeDasharray="3 3" />
-                                            <XAxis
-                                                type="number" tickFormatter={fmtCompact}
-                                                axisLine={false} tickLine={false}
-                                                tick={{ fill: 'var(--text-subtle)', fontSize: 11 }}
-                                            />
-                                            <YAxis
-                                                type="category" dataKey="categoria" width={168}
-                                                axisLine={false} tickLine={false}
-                                                tick={{ fill: 'var(--text-main)', fontSize: 12, fontWeight: 500 }}
-                                            />
-                                            <Tooltip
-                                                content={<ChartTooltip labelA={labelA} labelB={labelB} />}
-                                                cursor={{ fill: 'var(--surface-hover)' }}
-                                            />
-                                            <Bar dataKey="valorA" name={labelB} fill={COLOR_PREVIOUS} barSize={14} radius={[0, 3, 3, 0]} />
-                                            <Bar dataKey="valorB" name={labelA} fill={COLOR_CURRENT} barSize={14} radius={[0, 3, 3, 0]}>
-                                                <LabelList
-                                                    dataKey="valorB" position="right" offset={8}
-                                                    formatter={(v: any) => (v > 0 ? fmtCompact(Number(v)) : '')}
-                                                    style={{ fill: 'var(--text-muted)', fontSize: 11, fontWeight: 700 }}
-                                                />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div className="res-chart-body">
+                                    <ComparativoBarTable
+                                        itens={categorias}
+                                        total={{
+                                            categoria: 'Total',
+                                            valorA: activeCCData.totalA,
+                                            valorB: activeCCData.totalB,
+                                            variacao: activeCCData.variacao,
+                                        }}
+                                        labelA={labelA}
+                                        labelB={labelB}
+                                        colorCurrent={COLOR_CURRENT}
+                                        colorPrevious={COLOR_PREVIOUS}
+                                        escala={escala}
+                                    />
                                 </div>
                             </section>
 

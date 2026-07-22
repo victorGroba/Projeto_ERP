@@ -1,0 +1,190 @@
+/* ── Gráfico de colunas + tabela de valores alinhada (estilo planilha) ────── */
+
+.cmp {
+  --cmp-plot: 260px;
+  --cmp-cat: 48px;
+  --cmp-row: 30px;
+  --cmp-gutter: 148px;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* ── Coluna fixa da esquerda: escala + legenda das linhas ── */
+.cmp-gutter {
+  width: var(--cmp-gutter);
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+
+.cmp-gutter-plot {
+  position: relative;
+  height: var(--cmp-plot);
+  border-right: 1px solid var(--border-strong);
+}
+
+.cmp-tick {
+  position: absolute;
+  right: 0.5rem;
+  transform: translateY(50%);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cmp-gutter-cat {
+  height: var(--cmp-cat);
+  border-bottom: 1px solid var(--border);
+}
+
+.cmp-gutter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: var(--cmp-row);
+  padding-right: 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.cmp-gutter-row i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cmp-gutter-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Área rolável com as colunas ── */
+.cmp-scroll {
+  flex: 1;
+  overflow-x: auto;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+
+.cmp-grid {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+}
+
+/* Linhas de grade horizontais atrás das colunas */
+.cmp-gridlines {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--cmp-plot);
+  pointer-events: none;
+}
+
+.cmp-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--border);
+}
+
+.cmp-gridline.is-base { border-top: 1px solid var(--border-strong); border-top-style: solid; }
+
+/* ── Coluna de categoria ── */
+.cmp-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: background 0.12s;
+}
+
+.cmp-col.is-hover { background: var(--primary-light); }
+
+.cmp-col.is-total {
+  background: var(--surface-hover);
+  box-shadow: inset 1px 0 0 var(--border-strong);
+}
+
+.cmp-col.is-total.is-hover { background: var(--primary-light); }
+
+/* Plot */
+.cmp-plot {
+  height: var(--cmp-plot);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 0.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.cmp-bar {
+  width: 40%;
+  max-width: 26px;
+  min-width: 6px;
+  border-radius: 2px 2px 0 0;
+  transition: filter 0.12s;
+}
+
+.cmp-col.is-hover .cmp-bar { filter: saturate(1.15) brightness(1.04); }
+
+/* Rótulo da categoria */
+.cmp-cat {
+  height: var(--cmp-cat);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.25rem 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* Células de valor */
+.cmp-cell {
+  height: var(--cmp-row);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.cmp-cell.is-muted { color: var(--text-muted); font-weight: 500; }
+.cmp-cell.is-empty { color: var(--text-subtle); font-weight: 500; }
+.cmp-cell.is-up    { color: var(--danger); font-weight: 700; }
+.cmp-cell.is-down  { color: var(--success); font-weight: 700; }
+
+.cmp-col.is-total .cmp-cell,
+.cmp-col.is-total .cmp-cat { font-weight: 800; }
+
+/* Dica de rolagem */
+.cmp-scroll-hint {
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  font-weight: 500;
+  padding: 0.5rem 0 0 var(--cmp-gutter);
+}
