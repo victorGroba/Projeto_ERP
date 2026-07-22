@@ -22,7 +22,7 @@ export default function HistoricoImportacoes() {
     const fetchHistorico = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('/api/importacoes/historico', {
+            const res = await fetch('/api/etl/historico', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -44,7 +44,7 @@ export default function HistoricoImportacoes() {
         }
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`/api/importacoes/historico/${id}`, {
+            const res = await fetch(`/api/etl/historico/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
