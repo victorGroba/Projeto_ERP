@@ -1,23 +1,33 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Loader2, TrendingUp, TrendingDown, Presentation, LayoutTemplate, Layers, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import PeriodFilterBar from '../components/PeriodFilterBar';
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
+} from 'recharts';
+import {
+    Loader2, Presentation, ArrowUpRight, ArrowDownRight, Minus,
+    CalendarRange, GitCompareArrows, BarChart3, Table2, Inbox,
+} from 'lucide-react';
 import './Dashboard.css';
+import './ResultadosDiretoria.css';
 
-// ── Funções de formatação ───────────────────────────────────────────────────
+// ── Formatação ──────────────────────────────────────────────────────────────
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-const fmtK = (v: number) => `${(v / 1000).toFixed(1)}k`;
+const fmtCompact = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
+    if (abs >= 1_000) return `${(v / 1_000).toFixed(abs >= 10_000 ? 0 : 1)}k`;
+    return String(Math.round(v));
+};
 
-// ── Tipos ───────────────────────────────────────────────────────────────────
+// ── Tipos e presets ─────────────────────────────────────────────────────────
 type PresetKey = 'this_month' | 'last_month' | 'last_3m' | 'last_6m' | 'ytd' | 'this_year' | 'last_year' | 'custom';
 type PresetKeyB = PresetKey | 'auto';
 
 const PRESETS: { key: PresetKey; label: string }[] = [
     { key: 'this_month', label: 'Este mês' },
     { key: 'last_month', label: 'Mês passado' },
-    { key: 'last_3m',    label: 'Últimos 3 meses' },
-    { key: 'last_6m',    label: 'Últimos 6 meses' },
+    { key: 'last_3m',    label: '3 meses' },
+    { key: 'last_6m',    label: '6 meses' },
     { key: 'ytd',        label: 'Ano até hoje' },
     { key: 'this_year',  label: 'Ano completo' },
     { key: 'last_year',  label: 'Ano passado' },
@@ -25,8 +35,11 @@ const PRESETS: { key: PresetKey; label: string }[] = [
 ];
 
 const COMPARISON_PRESETS: { key: PresetKeyB; label: string }[] = [
-    { key: 'auto', label: 'Automático (ano anterior)' },
-    ...PRESETS,
+    { key: 'auto',       label: 'Ano anterior' },
+    { key: 'last_month', label: 'Mês passado' },
+    { key: 'last_3m',    label: '3 meses' },
+    { key: 'last_year',  label: 'Ano passado' },
+    { key: 'custom',     label: 'Personalizado' },
 ];
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -54,39 +67,109 @@ const shiftYear = (iso: string, delta: number) => {
     return toISO(d);
 };
 
-// ── Tooltip Customizado Clean ────────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-        return (
-            <div style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                padding: '1rem',
-                borderRadius: '8px',
-                boxShadow: 'var(--shadow-md)',
-                color: 'var(--text-main)',
-                minWidth: '220px'
-            }}>
-                <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '0.9375rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>{label}</p>
-                {payload.map((entry: any, index: number) => (
-                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0', fontSize: '0.875rem' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                            <div style={{ width: 10, height: 10, borderRadius: '2px', background: entry.color }}></div>
-                            {entry.name}
-                        </span>
-                        <span style={{ fontWeight: 700 }}>{fmt(entry.value)}</span>
-                    </div>
-                ))}
-            </div>
-        );
-    }
-    return null;
+const shortDate = (iso: string) =>
+    iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase() : '';
+
+// ── Paleta ──────────────────────────────────────────────────────────────────
+const COLOR_CURRENT = '#2563eb';
+const COLOR_PREVIOUS = '#cbd5e1';
+const COLOR_SUCCESS = '#059669';
+const COLOR_DANGER = '#dc2626';
+
+// ── Badge de variação ───────────────────────────────────────────────────────
+const Delta: React.FC<{ pct: number | null; size?: number }> = ({ pct, size = 13 }) => {
+    if (pct === null) return <span className="res-delta flat">Novo</span>;
+    const cls = Math.abs(pct) < 0.05 ? 'flat' : pct > 0 ? 'up' : 'down';
+    const Icon = cls === 'flat' ? Minus : pct > 0 ? ArrowUpRight : ArrowDownRight;
+    return (
+        <span className={`res-delta ${cls}`}>
+            <Icon size={size} />
+            {pct > 0 ? '+' : ''}{pct.toFixed(1)}%
+        </span>
+    );
 };
 
-// ── Componente Principal ────────────────────────────────────────────────────
+// ── Tooltip ─────────────────────────────────────────────────────────────────
+const ChartTooltip = ({ active, payload, label, labelA, labelB }: any) => {
+    if (!active || !payload?.length) return null;
+    const row = payload[0].payload;
+    const variacao: number | null = row.variacao;
+    return (
+        <div style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            padding: '0.75rem 0.875rem', borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)', minWidth: 230,
+        }}>
+            <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>{label}</div>
+            {[
+                { name: labelA, value: row.valorB, color: COLOR_CURRENT },
+                { name: labelB, value: row.valorA, color: COLOR_PREVIOUS },
+            ].map((e) => (
+                <div key={e.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '1.5rem', alignItems: 'center', padding: '0.1875rem 0', fontSize: '0.8125rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)' }}>
+                        <i style={{ width: 9, height: 9, borderRadius: 3, background: e.color, display: 'inline-block' }} />
+                        {e.name}
+                    </span>
+                    <strong style={{ color: 'var(--text-main)' }}>{fmt(e.value)}</strong>
+                </div>
+            ))}
+            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <span>Variação</span>
+                <Delta pct={variacao} size={12} />
+            </div>
+        </div>
+    );
+};
+
+// ── Linha de filtro ─────────────────────────────────────────────────────────
+interface FilterRowProps {
+    icon: React.ReactNode;
+    label: string;
+    presets: { key: string; label: string }[];
+    preset: string;
+    onPreset: (k: string) => void;
+    de: string; ate: string;
+    onDe: (v: string) => void; onAte: (v: string) => void;
+    onApply: () => void;
+    pending: boolean;
+    isLoading?: boolean;
+    summary: React.ReactNode;
+}
+
+const FilterRow: React.FC<FilterRowProps> = ({
+    icon, label, presets, preset, onPreset, de, ate, onDe, onAte, onApply, pending, isLoading, summary,
+}) => (
+    <div className="res-filter-row">
+        <span className="res-filter-label">{icon}{label}</span>
+        <div className="res-chips">
+            {presets.map(p => (
+                <button
+                    key={p.key}
+                    className={`res-chip${preset === p.key ? ' is-active' : ''}`}
+                    onClick={() => onPreset(p.key)}
+                >
+                    {p.label}
+                </button>
+            ))}
+        </div>
+        {preset === 'custom' && (
+            <div className="res-dates">
+                <input type="date" className="date-input" value={de} max={ate || undefined} onChange={e => onDe(e.target.value)} />
+                <span>até</span>
+                <input type="date" className="date-input" value={ate} min={de || undefined} onChange={e => onAte(e.target.value)} />
+                <button className="btn btn-primary" onClick={onApply} disabled={!de || !ate || !pending}>
+                    {isLoading ? <Loader2 size={14} className="animate-spin" /> : 'Aplicar'}
+                </button>
+            </div>
+        )}
+        <span className="res-filter-summary">{summary}</span>
+    </div>
+);
+
+// ── Componente principal ────────────────────────────────────────────────────
 const ResultadosDiretoria: React.FC = () => {
     const token = localStorage.getItem('@ContaAzul:token');
-    
+
     const [presetA, setPresetA] = useState<PresetKey>('this_year');
     const [periodoA, setPeriodoA] = useState(() => computeRange('this_year', { de: '', ate: '' }));
     const [customADe, setCustomADe] = useState(periodoA.de);
@@ -122,7 +205,9 @@ const ResultadosDiretoria: React.FC = () => {
     const handlePresetB = (novo: PresetKeyB) => {
         setPresetB(novo);
         if (novo === 'custom') return;
-        const range = novo === 'auto' ? { de: shiftYear(periodoA.de, -1), ate: shiftYear(periodoA.ate, -1) } : computeRange(novo as PresetKey, periodoB);
+        const range = novo === 'auto'
+            ? { de: shiftYear(periodoA.de, -1), ate: shiftYear(periodoA.ate, -1) }
+            : computeRange(novo as PresetKey, periodoB);
         setPeriodoB(range); setCustomBDe(range.de); setCustomBAte(range.ate);
     };
     const aplicarCustomB = () => setPeriodoB({ de: customBDe, ate: customBAte });
@@ -139,8 +224,9 @@ const ResultadosDiretoria: React.FC = () => {
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
                 setData(res.data);
-                if (!selectedCC && res.data.porCC.length > 0) {
-                    setSelectedCC(res.data.porCC[0].centroDeCusto);
+                if (res.data.porCC.length > 0) {
+                    const aindaExiste = res.data.porCC.some((c: any) => c.centroDeCusto === selectedCC);
+                    if (!aindaExiste) setSelectedCC(res.data.porCC[0].centroDeCusto);
                 }
             } catch (err) {
                 console.error('Erro ao buscar comparativo CC', err);
@@ -151,259 +237,228 @@ const ResultadosDiretoria: React.FC = () => {
         fetchData();
     }, [periodoA, periodoB, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const activeCCData = useMemo(() => {
-        if (!data || !selectedCC) return null;
-        return data.porCC.find((c: any) => c.centroDeCusto === selectedCC);
-    }, [data, selectedCC]);
+    const labelA = `${shortDate(periodoA.de)} – ${shortDate(periodoA.ate)}`;
+    const labelB = `${shortDate(periodoB.de)} – ${shortDate(periodoB.ate)}`;
 
-    const shortDate = (iso: string) => iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).toUpperCase() : '';
-    const labelA = `${shortDate(periodoA.de)} a ${shortDate(periodoA.ate)}`;
-    const labelB = `${shortDate(periodoB.de)} a ${shortDate(periodoB.ate)}`;
+    const totalAnterior = data?.totais?.totalA || 0;
+    const totalAtual = data?.totais?.totalB || 0;
+    const varRS = totalAtual - totalAnterior;
+    const varPct = totalAnterior > 0 ? (varRS / totalAnterior) * 100 : null;
 
-    const totalGeralA = data?.totais?.totalA || 0;
-    const totalGeralB = data?.totais?.totalB || 0;
-    const varGeralRS = totalGeralB - totalGeralA;
-    const varGeralPct = totalGeralA > 0 ? (varGeralRS / totalGeralA) * 100 : 0;
+    const activeCCData = useMemo(
+        () => (data && selectedCC ? data.porCC.find((c: any) => c.centroDeCusto === selectedCC) : null),
+        [data, selectedCC]
+    );
 
-    // Corporate Color Palette
-    const COLOR_CURRENT = '#0ea5e9'; // Professional solid blue
-    const COLOR_PREVIOUS = '#cbd5e1'; // Slate gray
-    const COLOR_SUCCESS = '#10b981';
-    const COLOR_DANGER = '#ef4444';
+    // Categorias ordenadas por relevância (maior gasto atual primeiro)
+    const categorias = useMemo(() => {
+        if (!activeCCData) return [];
+        return [...activeCCData.categorias].sort((a: any, b: any) => (b.valorB || 0) - (a.valorB || 0));
+    }, [activeCCData]);
+
+    const maiorCategoria = categorias[0];
+    const chartHeight = Math.max(280, categorias.length * 56 + 40);
 
     return (
-        <div className="module-page" style={{ paddingBottom: '3rem' }}>
-            
-            {/* Header Clean */}
-            <header style={{ 
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)'
-            }}>
+        <div className="module-page res-page">
+
+            {/* Header */}
+            <header className="res-header">
                 <div>
-                    <h2 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 0.25rem', color: 'var(--text-main)' }}>
-                        Painel de Resultados
-                    </h2>
-                    <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9375rem', fontWeight: 500 }}>
-                        Comparativo analítico de despesas por Centro de Custo
-                    </p>
+                    <h2>Painel de Resultados</h2>
+                    <p>Comparativo analítico de despesas por Centro de Custo</p>
                 </div>
-                <div style={{ 
-                    background: 'var(--primary-light)', color: 'var(--primary)', 
-                    padding: '0.5rem 1rem', borderRadius: '4px', 
-                    display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.8125rem'
-                }}>
-                    <Presentation size={16} /> Visão Consolidada
+                <div className="res-period-badge">
+                    <Presentation size={15} />
+                    <strong>{labelA}</strong> vs {labelB}
                 </div>
             </header>
 
             {/* Filtros */}
-            <div style={{
-                display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: '8px', padding: '1rem 1.25rem',
-                boxShadow: 'var(--shadow-sm)', marginBottom: '2rem',
-            }}>
-                <PeriodFilterBar
-                    icon={<span />} label="Período Atual"
-                    presets={PRESETS} preset={presetA} onPresetChange={(k) => handlePresetA(k as PresetKey)}
-                    de={customADe} ate={customAAte} onDeChange={setCustomADe} onAteChange={setCustomAAte}
+            <div className="res-filters">
+                <FilterRow
+                    icon={<CalendarRange size={14} />} label="Período"
+                    presets={PRESETS} preset={presetA} onPreset={k => handlePresetA(k as PresetKey)}
+                    de={customADe} ate={customAAte} onDe={setCustomADe} onAte={setCustomAAte}
                     onApply={aplicarCustomA} pending={pendingA} isLoading={isLoading}
-                    trailing={<span style={{ fontWeight: 700, color: COLOR_CURRENT }}>{labelA}</span>}
+                    summary={<span style={{ color: COLOR_CURRENT }}>{labelA}</span>}
                 />
-                <div style={{ height: 1, background: 'var(--border)' }} />
-                <PeriodFilterBar
-                    icon={<span />} label="Período Anterior"
-                    presets={COMPARISON_PRESETS} preset={presetB} onPresetChange={(k) => handlePresetB(k as PresetKeyB)}
-                    de={customBDe} ate={customBAte} onDeChange={setCustomBDe} onAteChange={setCustomBAte}
+                <FilterRow
+                    icon={<GitCompareArrows size={14} />} label="Comparar com"
+                    presets={COMPARISON_PRESETS} preset={presetB} onPreset={k => handlePresetB(k as PresetKeyB)}
+                    de={customBDe} ate={customBAte} onDe={setCustomBDe} onAte={setCustomBAte}
                     onApply={aplicarCustomB} pending={pendingB} isLoading={isLoading}
-                    trailing={<span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{labelB}</span>}
+                    summary={<span style={{ color: 'var(--text-muted)' }}>{labelB}</span>}
                 />
             </div>
 
             {isLoading && !data ? (
-                <div style={{ padding: '6rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: 'var(--text-muted)' }}>
-                    <Loader2 className="animate-spin" size={40} />
-                    <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>Carregando dados...</span>
+                <div className="res-state">
+                    <Loader2 className="animate-spin" size={32} />
+                    Carregando dados...
+                </div>
+            ) : !data || data.porCC.length === 0 ? (
+                <div className="res-state">
+                    <Inbox size={32} />
+                    Nenhuma despesa encontrada para o período selecionado.
                 </div>
             ) : (
-                data && data.porCC.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        
-                        {/* KPIs Globais */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
-                            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Despesa Total ({labelA})</span>
-                                <h2 style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>{fmt(totalGeralB)}</h2>
+                <div className={isLoading ? 'res-loading-overlay' : ''} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                    {/* KPIs */}
+                    <div className="res-kpis">
+                        <div className="res-kpi" style={{ ['--kpi-accent' as any]: COLOR_CURRENT }}>
+                            <span className="res-kpi-label">Despesa total — período atual</span>
+                            <div className="res-kpi-value">{fmt(totalAtual)}</div>
+                            <div className="res-kpi-foot">{labelA}</div>
+                        </div>
+
+                        <div className="res-kpi" style={{ ['--kpi-accent' as any]: COLOR_PREVIOUS }}>
+                            <span className="res-kpi-label">Despesa total — comparativo</span>
+                            <div className="res-kpi-value" style={{ color: 'var(--text-muted)' }}>{fmt(totalAnterior)}</div>
+                            <div className="res-kpi-foot">{labelB}</div>
+                        </div>
+
+                        <div className="res-kpi" style={{ ['--kpi-accent' as any]: varRS > 0 ? COLOR_DANGER : COLOR_SUCCESS }}>
+                            <span className="res-kpi-label">Variação no período</span>
+                            <div className="res-kpi-value" style={{ color: varRS > 0 ? COLOR_DANGER : COLOR_SUCCESS }}>
+                                {varRS > 0 ? '+' : ''}{fmt(varRS)}
                             </div>
-                            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Despesa Total ({labelB})</span>
-                                <h2 style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>{fmt(totalGeralA)}</h2>
-                            </div>
-                            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Variação</span>
-                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
-                                    <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, color: varGeralPct <= 0 ? COLOR_SUCCESS : COLOR_DANGER }}>
-                                        {varGeralRS > 0 ? '+' : ''}{fmt(varGeralRS)}
-                                    </h2>
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: varGeralPct <= 0 ? COLOR_SUCCESS : COLOR_DANGER, fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                                        {varGeralPct <= 0 ? <ArrowDownRight size={16} /> : <ArrowUpRight size={16} />}
-                                        {Math.abs(varGeralPct).toFixed(1)}%
-                                    </span>
-                                </div>
+                            <div className="res-kpi-foot">
+                                <Delta pct={varPct} />
+                                <span>frente ao comparativo</span>
                             </div>
                         </div>
 
-                        {/* Abas Horizontais (Centros de Custo) */}
-                        <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0', borderBottom: '2px solid var(--border)' }} className="hide-scrollbar">
-                            {data.porCC.map((cc: any) => (
-                                <button
-                                    key={cc.centroDeCusto}
-                                    onClick={() => setSelectedCC(cc.centroDeCusto)}
-                                    style={{
-                                        padding: '0.75rem 1.25rem', borderRadius: '8px 8px 0 0', cursor: 'pointer',
-                                        background: selectedCC === cc.centroDeCusto ? 'var(--surface)' : 'transparent',
-                                        color: selectedCC === cc.centroDeCusto ? 'var(--primary)' : 'var(--text-muted)',
-                                        border: '1px solid var(--border)', borderBottom: 'none',
-                                        fontWeight: 700, fontSize: '0.875rem', whiteSpace: 'nowrap',
-                                        borderBottomColor: selectedCC === cc.centroDeCusto ? 'var(--surface)' : 'var(--border)',
-                                        position: 'relative', top: '1px' // puxar para sobrepor a borda do container
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Layers size={16} opacity={selectedCC === cc.centroDeCusto ? 1 : 0.6} />
-                                        {cc.centroDeCusto}
-                                    </div>
-                                </button>
-                            ))}
+                        <div className="res-kpi" style={{ ['--kpi-accent' as any]: 'var(--warning)' }}>
+                            <span className="res-kpi-label">Centros de custo</span>
+                            <div className="res-kpi-value">{data.porCC.length}</div>
+                            <div className="res-kpi-foot">
+                                {maiorCategoria ? `Maior rubrica: ${maiorCategoria.categoria}` : 'Sem rubricas'}
+                            </div>
                         </div>
+                    </div>
 
-                        {/* Painel do CC Selecionado */}
-                        {activeCCData && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                                
-                                {/* Header do CC */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.5rem' }}>
-                                    <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <LayoutTemplate color="var(--primary)" size={24} />
+                    {/* Abas de Centro de Custo */}
+                    <div className="res-tabs">
+                        {data.porCC.map((cc: any) => (
+                            <button
+                                key={cc.centroDeCusto}
+                                className={`res-tab${selectedCC === cc.centroDeCusto ? ' is-active' : ''}`}
+                                onClick={() => setSelectedCC(cc.centroDeCusto)}
+                                title={cc.centroDeCusto}
+                            >
+                                <span className="res-tab-name">{cc.centroDeCusto}</span>
+                                <span className="res-tab-value">{fmt(cc.totalB)}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {activeCCData && (
+                        <>
+                            {/* Gráfico */}
+                            <section className="res-panel">
+                                <div className="res-panel-head">
+                                    <h3>
+                                        <BarChart3 size={16} color="var(--primary)" />
                                         {activeCCData.centroDeCusto}
+                                        <span className="res-hint">· {categorias.length} rubricas, maiores primeiro</span>
                                     </h3>
-                                    <div style={{ display: 'flex', gap: '2rem' }}>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Despesa Total</div>
-                                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>{fmt(activeCCData.totalB)}</div>
-                                        </div>
+                                    <div className="res-legend">
+                                        <span><i style={{ background: COLOR_CURRENT }} />{labelA}</span>
+                                        <span><i style={{ background: COLOR_PREVIOUS }} />{labelB}</span>
                                     </div>
                                 </div>
-
-                                {/* Gráfico Corporativo */}
-                                <div style={{ 
-                                    background: 'var(--surface)', border: '1px solid var(--border)', 
-                                    borderRadius: '8px', padding: '1.5rem', height: 420, boxShadow: 'var(--shadow-sm)'
-                                }}>
+                                <div className="res-chart-body" style={{ height: chartHeight }}>
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={activeCCData.categorias} margin={{ top: 20, right: 0, left: -20, bottom: 0 }} barGap={2} barCategoryGap="25%">
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                            <XAxis 
-                                                dataKey="categoria" axisLine={false} tickLine={false} 
-                                                tick={{ fill: 'var(--text-muted)', fontSize: 12, fontWeight: 500 }} dy={10}
+                                        <BarChart
+                                            data={categorias}
+                                            layout="vertical"
+                                            margin={{ top: 4, right: 72, left: 8, bottom: 4 }}
+                                            barGap={4}
+                                            barCategoryGap="28%"
+                                        >
+                                            <CartesianGrid horizontal={false} stroke="var(--border)" strokeDasharray="3 3" />
+                                            <XAxis
+                                                type="number" tickFormatter={fmtCompact}
+                                                axisLine={false} tickLine={false}
+                                                tick={{ fill: 'var(--text-subtle)', fontSize: 11 }}
                                             />
-                                            <YAxis 
-                                                tickFormatter={(v) => fmtK(v)} axisLine={false} tickLine={false} 
-                                                tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dx={-10}
+                                            <YAxis
+                                                type="category" dataKey="categoria" width={168}
+                                                axisLine={false} tickLine={false}
+                                                tick={{ fill: 'var(--text-main)', fontSize: 12, fontWeight: 500 }}
                                             />
-                                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--surface-hover)' }} />
-                                            <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px', fontSize: '0.875rem' }} iconType="circle" />
-                                            <Bar dataKey="valorA" name={labelB} fill={COLOR_PREVIOUS} maxBarSize={45} />
-                                            <Bar dataKey="valorB" name={labelA} fill={COLOR_CURRENT} maxBarSize={45} />
+                                            <Tooltip
+                                                content={<ChartTooltip labelA={labelA} labelB={labelB} />}
+                                                cursor={{ fill: 'var(--surface-hover)' }}
+                                            />
+                                            <Bar dataKey="valorA" name={labelB} fill={COLOR_PREVIOUS} barSize={14} radius={[0, 3, 3, 0]} />
+                                            <Bar dataKey="valorB" name={labelA} fill={COLOR_CURRENT} barSize={14} radius={[0, 3, 3, 0]}>
+                                                <LabelList
+                                                    dataKey="valorB" position="right" offset={8}
+                                                    formatter={(v: any) => (v > 0 ? fmtCompact(Number(v)) : '')}
+                                                    style={{ fill: 'var(--text-muted)', fontSize: 11, fontWeight: 700 }}
+                                                />
+                                            </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
+                            </section>
 
-                                {/* Tabela Clean */}
-                                <div style={{ 
-                                    background: 'var(--surface)', border: '1px solid var(--border)', 
-                                    borderRadius: '8px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' 
-                                }}>
-                                    <div style={{ overflowX: 'auto' }}>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                            <thead>
-                                                <tr style={{ background: 'var(--background)' }}>
-                                                    <th style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Categoria / Rubrica</th>
-                                                    <th style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border)', fontSize: '0.8125rem', fontWeight: 700, color: COLOR_CURRENT, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labelA}</th>
-                                                    <th style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labelB}</th>
-                                                    <th style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-main)', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Variação %</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {activeCCData.categorias.map((cat: any) => {
-                                                    const varColor = cat.variacao === null ? 'var(--text-subtle)' : cat.variacao <= 0 ? COLOR_SUCCESS : COLOR_DANGER;
-                                                    
-                                                    return (
-                                                        <tr key={cat.categoria} style={{ borderBottom: '1px solid var(--border)' }} className="table-row-hover">
-                                                            <td style={{ padding: '1rem 1.5rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                                                                {cat.categoria}
-                                                            </td>
-                                                            <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontSize: '0.9375rem', fontWeight: 700, color: cat.valorB > 0 ? 'var(--text-main)' : 'var(--text-subtle)' }}>
-                                                                {cat.valorB > 0 ? fmt(cat.valorB) : '—'}
-                                                            </td>
-                                                            <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontSize: '0.9375rem', fontWeight: 500, color: cat.valorA > 0 ? 'var(--text-muted)' : 'var(--text-subtle)' }}>
-                                                                {cat.valorA > 0 ? fmt(cat.valorA) : '—'}
-                                                            </td>
-                                                            <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                                                                <span style={{ 
-                                                                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem', 
-                                                                    color: varColor, fontSize: '0.875rem', fontWeight: 700 
-                                                                }}>
-                                                                    {cat.variacao !== null && (cat.variacao <= 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />)}
-                                                                    {cat.variacao === null ? 'Novo' : `${cat.variacao > 0 ? '+' : ''}${cat.variacao.toFixed(1)}%`}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                                {/* Total Row */}
-                                                <tr style={{ background: 'var(--surface-hover)' }}>
-                                                    <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.9375rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                                                        Subtotal {activeCCData.centroDeCusto}
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '1rem', fontWeight: 800, color: COLOR_CURRENT }}>
-                                                        {fmt(activeCCData.totalB)}
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '1rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                                                        {fmt(activeCCData.totalA)}
-                                                    </td>
-                                                    <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right' }}>
-                                                        <span style={{ 
-                                                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem', 
-                                                            color: activeCCData.variacao <= 0 ? COLOR_SUCCESS : COLOR_DANGER, fontSize: '0.9375rem', fontWeight: 800 
-                                                        }}>
-                                                            {activeCCData.variacao !== null && (activeCCData.variacao <= 0 ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />)}
-                                                            {activeCCData.variacao === null ? 'Novo' : `${activeCCData.variacao > 0 ? '+' : ''}${activeCCData.variacao.toFixed(1)}%`}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                            {/* Tabela */}
+                            <section className="res-panel">
+                                <div className="res-panel-head">
+                                    <h3><Table2 size={16} color="var(--primary)" /> Detalhamento por rubrica</h3>
+                                    <span className="res-hint">A barra indica o peso da rubrica no centro de custo</span>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                )
+                                <div className="res-table-wrap">
+                                    <table className="res-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Categoria / Rubrica</th>
+                                                <th style={{ color: COLOR_CURRENT }}>{labelA}</th>
+                                                <th>{labelB}</th>
+                                                <th>Variação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {categorias.map((cat: any) => {
+                                                const peso = activeCCData.totalB > 0 ? (cat.valorB / activeCCData.totalB) * 100 : 0;
+                                                return (
+                                                    <tr key={cat.categoria}>
+                                                        <td>
+                                                            <div className="res-cat">
+                                                                <span className="res-cat-name">{cat.categoria}</span>
+                                                                <div className="res-cat-bar"><i style={{ width: `${Math.max(peso, 1)}%` }} /></div>
+                                                            </div>
+                                                        </td>
+                                                        <td className={cat.valorB > 0 ? 'res-val-strong' : 'res-val-empty'}>
+                                                            {cat.valorB > 0 ? fmt(cat.valorB) : '—'}
+                                                        </td>
+                                                        <td className={cat.valorA > 0 ? 'res-val-muted' : 'res-val-empty'}>
+                                                            {cat.valorA > 0 ? fmt(cat.valorA) : '—'}
+                                                        </td>
+                                                        <td><Delta pct={cat.variacao} /></td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td>Subtotal · {activeCCData.centroDeCusto}</td>
+                                                <td style={{ color: COLOR_CURRENT }}>{fmt(activeCCData.totalB)}</td>
+                                                <td style={{ color: 'var(--text-muted)' }}>{fmt(activeCCData.totalA)}</td>
+                                                <td><Delta pct={activeCCData.variacao} /></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </section>
+                        </>
+                    )}
+                </div>
             )}
-            
-            <style dangerouslySetInnerHTML={{__html: `
-                .table-row-hover:hover {
-                    background: var(--surface-hover) !important;
-                }
-                .hide-scrollbar::-webkit-scrollbar {
-                    display: none;
-                }
-                .hide-scrollbar {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-            `}} />
         </div>
     );
 };
