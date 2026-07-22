@@ -1,0 +1,212 @@
+/* ── Índices Gerenciais ───────────────────────────────────────────────────── */
+
+.ind-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 3rem;
+}
+
+.ind-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.ind-body { padding: 1rem 1.25rem 1.25rem; }
+
+/* ── Barras de ranking (ofensores / economias / fornecedores) ── */
+.ind-rank { display: flex; flex-direction: column; }
+
+.ind-rank-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.75rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ind-rank-item:last-child { border-bottom: none; }
+
+.ind-rank-nome {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ind-rank-nome small {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-subtle);
+  margin-top: 1px;
+}
+
+.ind-rank-valor {
+  text-align: right;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ind-rank-valor small {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+  margin-top: 1px;
+}
+
+.ind-rank-valor.is-up { color: var(--danger); }
+.ind-rank-valor.is-down { color: var(--success); }
+
+.ind-rank-bar {
+  grid-column: 1 / -1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.ind-rank-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ── Medidor de composição (pessoal, concentração) ── */
+.ind-meter {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--background);
+  margin: 0.75rem 0 0.5rem;
+}
+
+.ind-meter i { display: block; height: 100%; }
+
+.ind-meter-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ind-meter-legend span { display: inline-flex; align-items: center; gap: 0.375rem; }
+.ind-meter-legend i { width: 9px; height: 9px; border-radius: 2px; }
+
+/* ── Lista de definição (índice + valor + explicação) ── */
+.ind-defs { display: flex; flex-direction: column; gap: 0.875rem; }
+
+.ind-def {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+
+.ind-def-nome { font-size: 0.8125rem; font-weight: 700; color: var(--text-main); }
+
+.ind-def-valor {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ind-def-desc {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* ── Chips de categorias (transparência do custo de pessoal) ── */
+.ind-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.625rem;
+}
+
+.ind-tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  padding: 0.1875rem 0.5rem;
+}
+
+.ind-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.ind-toggle:hover { text-decoration: underline; }
+
+/* ── Sparkline ── */
+.ind-spark { display: block; }
+.ind-spark path { fill: none; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+
+/* ── Aviso metodológico ── */
+.ind-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.875rem 1.125rem;
+  background: var(--warning-light);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+.ind-nota svg { color: var(--warning); flex-shrink: 0; margin-top: 2px; }
+.ind-nota strong { font-weight: 700; }
+
+/* ── Tabela por CC ── */
+.ind-cc-nome { font-weight: 700; color: var(--text-main); }
+
+.ind-bar-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ind-bar-mini {
+  width: 54px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--background);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ind-bar-mini i { display: block; height: 100%; border-radius: 3px; background: var(--primary); }
+
+.ind-vazio {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}

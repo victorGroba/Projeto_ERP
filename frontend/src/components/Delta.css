@@ -1,0 +1,15 @@
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta.up   { background: var(--danger-light);  color: var(--danger); }
+.delta.down { background: var(--success-light); color: var(--success); }
+.delta.flat { background: var(--background);    color: var(--text-muted); }

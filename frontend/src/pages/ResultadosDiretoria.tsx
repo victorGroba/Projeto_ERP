@@ -1,130 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-    Loader2, Presentation, ArrowUpRight, ArrowDownRight, Minus,
-    CalendarRange, GitCompareArrows, BarChart3, Table2, Inbox,
+    Loader2, Presentation, CalendarRange, GitCompareArrows, BarChart3, Table2, Inbox,
 } from 'lucide-react';
 import ComparativoBarTable from '../components/ComparativoBarTable';
+import Delta from '../components/Delta';
+import PeriodoChips, {
+    PRESETS, COMPARISON_PRESETS, computeRange, shiftYear, shortDate,
+    type PresetKey, type PresetKeyB,
+} from '../components/PeriodoChips';
 import './Dashboard.css';
+import '../styles/painel.css';
 import './ResultadosDiretoria.css';
 
 // ── Formatação ──────────────────────────────────────────────────────────────
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
-// ── Tipos e presets ─────────────────────────────────────────────────────────
-type PresetKey = 'this_month' | 'last_month' | 'last_3m' | 'last_6m' | 'ytd' | 'this_year' | 'last_year' | 'custom';
-type PresetKeyB = PresetKey | 'auto';
-
-const PRESETS: { key: PresetKey; label: string }[] = [
-    { key: 'this_month', label: 'Este mês' },
-    { key: 'last_month', label: 'Mês passado' },
-    { key: 'last_3m',    label: '3 meses' },
-    { key: 'last_6m',    label: '6 meses' },
-    { key: 'ytd',        label: 'Ano até hoje' },
-    { key: 'this_year',  label: 'Ano completo' },
-    { key: 'last_year',  label: 'Ano passado' },
-    { key: 'custom',     label: 'Personalizado' },
-];
-
-const COMPARISON_PRESETS: { key: PresetKeyB; label: string }[] = [
-    { key: 'auto',       label: 'Ano anterior' },
-    { key: 'last_month', label: 'Mês passado' },
-    { key: 'last_3m',    label: '3 meses' },
-    { key: 'last_year',  label: 'Ano passado' },
-    { key: 'custom',     label: 'Personalizado' },
-];
-
-const pad = (n: number) => String(n).padStart(2, '0');
-const toISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-function computeRange(preset: PresetKey, fallback: { de: string; ate: string }): { de: string; ate: string } {
-    const hoje = new Date();
-    const y = hoje.getFullYear();
-    const m = hoje.getMonth();
-    switch (preset) {
-        case 'this_month': return { de: toISO(new Date(y, m, 1)), ate: toISO(hoje) };
-        case 'last_month': return { de: toISO(new Date(y, m - 1, 1)), ate: toISO(new Date(y, m, 0)) };
-        case 'last_3m':    return { de: toISO(new Date(y, m - 2, 1)), ate: toISO(hoje) };
-        case 'last_6m':    return { de: toISO(new Date(y, m - 5, 1)), ate: toISO(hoje) };
-        case 'ytd':        return { de: `${y}-01-01`, ate: toISO(hoje) };
-        case 'this_year':  return { de: `${y}-01-01`, ate: `${y}-12-31` };
-        case 'last_year':  return { de: `${y - 1}-01-01`, ate: `${y - 1}-12-31` };
-        default:           return fallback;
-    }
-}
-
-const shiftYear = (iso: string, delta: number) => {
-    const d = new Date(`${iso}T00:00:00`);
-    d.setFullYear(d.getFullYear() + delta);
-    return toISO(d);
-};
-
-const shortDate = (iso: string) =>
-    iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase() : '';
 
 // ── Paleta ──────────────────────────────────────────────────────────────────
 const COLOR_CURRENT = '#2563eb';
 const COLOR_PREVIOUS = '#cbd5e1';
 const COLOR_SUCCESS = '#059669';
 const COLOR_DANGER = '#dc2626';
-
-// ── Badge de variação ───────────────────────────────────────────────────────
-const Delta: React.FC<{ pct: number | null; size?: number }> = ({ pct, size = 13 }) => {
-    if (pct === null) return <span className="res-delta flat">Novo</span>;
-    const cls = Math.abs(pct) < 0.05 ? 'flat' : pct > 0 ? 'up' : 'down';
-    const Icon = cls === 'flat' ? Minus : pct > 0 ? ArrowUpRight : ArrowDownRight;
-    return (
-        <span className={`res-delta ${cls}`}>
-            <Icon size={size} />
-            {pct > 0 ? '+' : ''}{pct.toFixed(1)}%
-        </span>
-    );
-};
-
-// ── Linha de filtro ─────────────────────────────────────────────────────────
-interface FilterRowProps {
-    icon: React.ReactNode;
-    label: string;
-    presets: { key: string; label: string }[];
-    preset: string;
-    onPreset: (k: string) => void;
-    de: string; ate: string;
-    onDe: (v: string) => void; onAte: (v: string) => void;
-    onApply: () => void;
-    pending: boolean;
-    isLoading?: boolean;
-    summary: React.ReactNode;
-}
-
-const FilterRow: React.FC<FilterRowProps> = ({
-    icon, label, presets, preset, onPreset, de, ate, onDe, onAte, onApply, pending, isLoading, summary,
-}) => (
-    <div className="res-filter-row">
-        <span className="res-filter-label">{icon}{label}</span>
-        <div className="res-chips">
-            {presets.map(p => (
-                <button
-                    key={p.key}
-                    className={`res-chip${preset === p.key ? ' is-active' : ''}`}
-                    onClick={() => onPreset(p.key)}
-                >
-                    {p.label}
-                </button>
-            ))}
-        </div>
-        {preset === 'custom' && (
-            <div className="res-dates">
-                <input type="date" className="date-input" value={de} max={ate || undefined} onChange={e => onDe(e.target.value)} />
-                <span>até</span>
-                <input type="date" className="date-input" value={ate} min={de || undefined} onChange={e => onAte(e.target.value)} />
-                <button className="btn btn-primary" onClick={onApply} disabled={!de || !ate || !pending}>
-                    {isLoading ? <Loader2 size={14} className="animate-spin" /> : 'Aplicar'}
-                </button>
-            </div>
-        )}
-        <span className="res-filter-summary">{summary}</span>
-    </div>
-);
 
 // ── Componente principal ────────────────────────────────────────────────────
 const ResultadosDiretoria: React.FC = () => {
@@ -239,14 +135,14 @@ const ResultadosDiretoria: React.FC = () => {
 
             {/* Filtros */}
             <div className="res-filters">
-                <FilterRow
+                <PeriodoChips
                     icon={<CalendarRange size={14} />} label="Período"
                     presets={PRESETS} preset={presetA} onPreset={k => handlePresetA(k as PresetKey)}
                     de={customADe} ate={customAAte} onDe={setCustomADe} onAte={setCustomAAte}
                     onApply={aplicarCustomA} pending={pendingA} isLoading={isLoading}
                     summary={<span style={{ color: COLOR_CURRENT }}>{labelA}</span>}
                 />
-                <FilterRow
+                <PeriodoChips
                     icon={<GitCompareArrows size={14} />} label="Comparar com"
                     presets={COMPARISON_PRESETS} preset={presetB} onPreset={k => handlePresetB(k as PresetKeyB)}
                     de={customBDe} ate={customBAte} onDe={setCustomBDe} onAte={setCustomBAte}

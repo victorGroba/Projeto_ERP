@@ -1,0 +1,220 @@
+/* ── Primitivos compartilhados das telas de diretoria ─────────────────────── */
+/* Usados por Resultados e Índices. Mantidos com o prefixo .res- para não   */
+/* exigir troca de marcação nas telas que já os consomem.                   */
+
+/* ── Header de página ── */
+.res-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.res-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+}
+
+.res-header p {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.res-period-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  padding: 0.4rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  box-shadow: var(--shadow-xs);
+}
+
+.res-period-badge strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+/* ── Cards de KPI ── */
+.res-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.res-kpi {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.125rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.res-kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--kpi-accent, var(--border-strong));
+}
+
+.res-kpi-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.res-kpi-value {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin-top: 0.5rem;
+}
+
+.res-kpi-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+/* ── Painéis ── */
+.res-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.res-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.res-panel-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.res-panel-head .res-hint {
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+
+.res-legend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.res-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 0.375rem;
+  vertical-align: -1px;
+}
+
+.res-chart-body { padding: 1rem 1.25rem 0.5rem; }
+
+/* ── Tabelas ── */
+.res-table-wrap { overflow-x: auto; }
+
+.res-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.res-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-hover);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.res-table th:first-child,
+.res-table td:first-child { text-align: left; }
+
+.res-table td {
+  padding: 0.75rem 1.25rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.res-table tbody tr:hover td { background: var(--surface-hover); }
+
+.res-table tfoot td {
+  background: var(--surface-hover);
+  font-weight: 800;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: none;
+  padding: 0.9375rem 1.25rem;
+}
+
+.res-val-strong { font-weight: 700; }
+.res-val-muted  { color: var(--text-muted); font-weight: 500; }
+.res-val-empty  { color: var(--text-subtle); }
+
+/* ── Estados ── */
+.res-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 5rem 1rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.res-loading-overlay { opacity: 0.55; transition: opacity 0.2s; pointer-events: none; }

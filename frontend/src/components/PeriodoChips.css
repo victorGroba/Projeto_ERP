@@ -1,0 +1,105 @@
+/* ── Filtro de período em chips ───────────────────────────────────────────── */
+
+.res-filters {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.res-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.125rem;
+  flex-wrap: wrap;
+}
+
+.res-filter-row + .res-filter-row {
+  border-top: 1px solid var(--border);
+  background: var(--surface-hover);
+}
+
+.res-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  width: 116px;
+  flex-shrink: 0;
+}
+
+.res-filter-label svg { color: var(--text-subtle); }
+
+.res-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.res-chip {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.375rem 0.75rem;
+  border-radius: 2rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.res-chip:hover {
+  background: var(--background);
+  color: var(--text-main);
+}
+
+.res-chip.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.res-filter-row + .res-filter-row .res-chip:hover { background: var(--surface); }
+
+.res-filter-row + .res-filter-row .res-chip.is-active {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-main);
+}
+
+.res-dates {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0.5rem;
+  margin-left: 0.25rem;
+  border-left: 1px solid var(--border);
+  animation: fadeIn 0.18s ease;
+}
+
+.res-dates span {
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+.res-filter-summary {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: var(--tracking-snug);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .res-filter-label { width: 100%; }
+  .res-filter-summary { margin-left: 0; width: 100%; }
+}

@@ -11,6 +11,7 @@ import { getDevedoresDetalhe } from '../controllers/inadimplenciaDetalheControll
 import { getComparativoInadimplencia } from '../controllers/inadimplenciaComparativoController';
 import { getComparativoCC } from '../controllers/comparativoCCController';
 import { getIndicadoresApi } from '../controllers/apiContaAzulController';
+import { getIndices } from '../controllers/indicesController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -37,6 +38,9 @@ router.get('/despesas/detalhe-por-cc', authMiddleware, getDetalhePorCC);
 
 // Comparativo CC × Período A vs B
 router.get('/despesas/comparativo-cc', authMiddleware, getComparativoCC);
+
+// Índices gerenciais consolidados (aba "Índices")
+router.get('/indices', authMiddleware, getIndices);
 
 // Resumo de despesas por categoria para período customizado (Visão Geral)
 router.get('/despesas/resumo-periodo', authMiddleware, getResumoDespesasPeriodo);

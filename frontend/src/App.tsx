@@ -13,10 +13,11 @@ import DocumentacaoKPIs from './pages/DocumentacaoKPIs';
 import ApiContaAzul from './pages/ApiContaAzul';
 import HistoricoImportacoes from './pages/HistoricoImportacoes';
 import ResultadosDiretoria from './pages/ResultadosDiretoria';
+import Indices from './pages/Indices';
 import {
     LayoutDashboard, AlertTriangle, TrendingDown,
     LogOut, UploadCloud, LineChart, Settings, BookOpen,
-    PanelLeftClose, PanelLeftOpen, Plug, History, Presentation
+    PanelLeftClose, PanelLeftOpen, Plug, History, Presentation, Gauge
 } from 'lucide-react';
 import './index.css';
 
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
     { to: '/inadimplencia', label: 'Inadimplência',    Icon: AlertTriangle },
     { to: '/despesas',      label: 'Custos & Despesas',Icon: TrendingDown },
     { to: '/resultados',    label: 'Resultados (Diretoria)', Icon: Presentation },
+    { to: '/indices',       label: 'Índices Gerenciais', Icon: Gauge },
     { to: '/evolucao',      label: 'Análise Avançada', Icon: LineChart },
     { to: '/api-conta-azul', label: 'API',              Icon: Plug },
     { to: '/importacao',    label: 'Importação CSV',   Icon: UploadCloud },
@@ -40,6 +42,7 @@ const PAGE_TITLES: Record<string, string> = {
     '/inadimplencia':  'Inadimplência',
     '/despesas':       'Custos & Despesas',
     '/resultados':     'Resultados (Diretoria)',
+    '/indices':        'Índices Gerenciais',
     '/evolucao':       'Análise Avançada',
     '/api-conta-azul': 'Indicadores via API',
     '/importacao':     'Sincronização',
@@ -128,6 +131,7 @@ function App() {
                             <Route path="/historico"    element={<HistoricoImportacoes />} />
                             <Route path="/despesas"     element={<Despesas />} />
                             <Route path="/resultados"   element={<ResultadosDiretoria />} />
+                            <Route path="/indices"      element={<Indices />} />
                             <Route path="/evolucao"       element={<EvolucaoMensal />} />
                             <Route path="/api-conta-azul" element={<ApiContaAzul />} />
                             <Route path="/configuracoes" element={<Configuracoes />} />
