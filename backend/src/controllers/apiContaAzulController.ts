@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { STATUS_PENDENTES } from '../utils/statusReceita';
 import { getAPI } from '../services/contaAzulSyncService';
 
 const prisma = new PrismaClient();
@@ -157,7 +158,7 @@ async function buscarInadimplencia() {
         const hoje = new Date();
         const [emAberto, vencido] = await Promise.all([
             prisma.contaReceber.aggregate({
-                where: { status: { in: ['A Vencer', 'Vencido'] } },
+                where: { status: { in: STATUS_PENDENTES } },
                 _sum: { valor: true },
                 _count: true,
             }),

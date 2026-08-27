@@ -136,7 +136,16 @@ const Importacao: React.FC = () => {
             const res = await axios.post(`${API}/api/etl/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            setCsvStatus({ type: 'success', message: 'Base Atualizada!', details: `${res.data.totalInserido} registros importados.` });
+            const descartados: Record<string, number> = res.data.descartados || {};
+            const resumoDescartes = Object.entries(descartados)
+                .map(([motivo, qtd]) => `${qtd} ${motivo}`)
+                .join('; ');
+            setCsvStatus({
+                type: 'success',
+                message: 'Base Atualizada!',
+                details: `${res.data.totalInserido} de ${res.data.totalLido} registros importados.`
+                    + (resumoDescartes ? ` Linhas descartadas: ${resumoDescartes}.` : ''),
+            });
             setFile(null);
         } catch (err: any) {
             setCsvStatus({ type: 'error', message: 'Falha na Importação', details: err.response?.data?.error || 'Erro de comunicação.' });

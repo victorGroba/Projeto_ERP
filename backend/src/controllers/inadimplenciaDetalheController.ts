@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { STATUS_PENDENTES } from '../utils/statusReceita';
 
 const prisma = new PrismaClient();
 
@@ -19,7 +20,7 @@ export const getDevedoresDetalhe = async (req: Request, res: Response): Promise<
         // Apenas títulos realmente vencidos (dataVencimento < hoje) dentro do intervalo
         const contas = await prisma.contaReceber.findMany({
             where: {
-                status: { notIn: ['Recebido', 'Baixado', 'Pago'] },
+                status: { in: STATUS_PENDENTES },
                 dataVencimento: {
                     gte: dataInicio,
                     lt:  hoje,          // vencidos antes de hoje

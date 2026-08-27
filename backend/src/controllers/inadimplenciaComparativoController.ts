@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient, ContaReceber } from '@prisma/client';
+import { STATUS_PENDENTES } from '../utils/statusReceita';
 
 const prisma = new PrismaClient();
 
@@ -9,7 +10,7 @@ async function calcularAging(dataInicio: Date, dataFim: Date) {
 
     const pendentes = await prisma.contaReceber.findMany({
         where: {
-            status: { notIn: ['Recebido', 'Baixado', 'Pago'] },
+            status: { in: STATUS_PENDENTES },
             dataVencimento: { gte: dataInicio, lte: dataFim },
         },
     });

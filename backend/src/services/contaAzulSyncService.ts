@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { STATUS_RECEITA } from '../utils/statusReceita';
 import { ContaAzulAPI } from './contaAzulApi';
 
 const prisma = new PrismaClient();
@@ -73,9 +74,9 @@ async function persistTokens(api: ContaAzulAPI): Promise<void> {
 // pagos como Vencido por causa da data passada — inflando o total de inadimplência.
 function mapStatus(statusTraduzido: string, dataVencimento: Date): string {
     const s = (statusTraduzido || '').toUpperCase();
-    if (s === 'RECEBIDO' || s === 'PAGO' || s === 'PAID') return 'Pago';
+    if (s === 'RECEBIDO' || s === 'PAGO' || s === 'PAID') return STATUS_RECEITA.PAGO;
     // EM_ABERTO: A Vencer se prazo futuro, Vencido se prazo já passou
-    return dataVencimento < new Date() ? 'Vencido' : 'A Vencer';
+    return dataVencimento < new Date() ? STATUS_RECEITA.VENCIDO : STATUS_RECEITA.A_VENCER;
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));

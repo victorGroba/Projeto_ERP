@@ -66,3 +66,6 @@ backend/*.json
 !backend/package.json
 !backend/package-lock.json
 !backend/tsconfig.json
+
+# backups do banco gerados pelo script de auditoria
+*.db.bak-*

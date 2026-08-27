@@ -25,7 +25,10 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req: Reques
         res.json({ success: true, message: 'Arquivo processado com sucesso!', ...result });
     } catch (error: any) {
         console.error('Erro no upload de CSV:', error);
-        res.status(500).json({ error: error.message || 'Erro interno ao processar o arquivo CSV.' });
+        // Arquivo com layout incompativel e erro do cliente, nao falha do servidor
+        const layoutInvalido = String(error.message || '').startsWith('Arquivo rejeitado');
+        res.status(layoutInvalido ? 422 : 500)
+           .json({ error: error.message || 'Erro interno ao processar o arquivo CSV.' });
     }
 });
 

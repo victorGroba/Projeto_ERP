@@ -53,12 +53,46 @@ export class ImportacaoService {
 
     private static getFlexValue(row: any, possibleKeys: string[]) {
         const rowKeys = Object.keys(row);
-        for (const k of rowKeys) {
-            if (possibleKeys.some(pK => k.includes(pK))) {
-                return row[k];
-            }
+        // 1a passada: match exato, respeitando a ordem de prioridade dos aliases
+        for (const pK of possibleKeys) {
+            if (rowKeys.includes(pK)) return row[pK];
+        }
+        // 2a passada: match parcial, tambem na ordem de prioridade dos aliases
+        // (antes iterava as colunas do arquivo, entao a 1a coluna do CSV vencia
+        //  mesmo casando com um alias de baixa prioridade — ex: 'valor_total_geral')
+        for (const pK of possibleKeys) {
+            const hit = rowKeys.find(k => k.includes(pK));
+            if (hit) return row[hit];
         }
         return null;
+    }
+
+    /**
+     * Normaliza o status de um titulo a receber para o vocabulario canonico
+     * usado tambem pelo sync da API: 'Pago' | 'Vencido' | 'A Vencer' | 'Cancelado'.
+     * Retorna null quando o status esta ausente ou nao e reconhecido — a linha
+     * deve ser descartada, nunca assumida como inadimplente.
+     */
+    private static normalizeStatusReceita(statusStr: string | null, dataVencimento: Date): string | null {
+        const s = String(statusStr || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toUpperCase();
+        if (!s) return null;
+        if (['RECEBIDO', 'PAGO', 'PAID', 'BAIXADO', 'LIQUIDADO', 'QUITADO'].includes(s)) return 'Pago';
+        if (['CANCELADO', 'ESTORNADO'].includes(s)) return 'Cancelado';
+        if (s.includes('VENC') || s.includes('ABERTO') || s.includes('PENDENTE') || s.includes('ATRAS')) {
+            return dataVencimento < new Date() ? 'Vencido' : 'A Vencer';
+        }
+        return null;
+    }
+
+    /** Detecta linhas de totalizador do relatorio ("Total", "Subtotal", "Total do periodo"...). */
+    private static isLinhaTotalizadora(...campos: (string | null)[]): boolean {
+        return campos.some(c => /^(sub)?totais?\b|^total d[oae]\b/i.test(
+            String(c || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+        ));
     }
 
     /**
@@ -80,6 +114,7 @@ export class ImportacaoService {
     static async processarCSV(filePath: string, tipo: string): Promise<any> {
         let inseridos = 0;
         let totalLidos = 0;
+        const descartados: Record<string, number> = {};
 
         try {
             const rawContent = fs.readFileSync(filePath, 'latin1');
@@ -163,6 +198,18 @@ export class ImportacaoService {
 
                         const conta = this.getFlexValue(row, ['conta', 'conta_bancaria', 'banco', 'caixa']) || 'Diversos';
 
+                        // Rodapes e subtotais do relatorio nao sao lancamentos.
+                        if (this.isLinhaTotalizadora(categoria, fornec, desc)) {
+                            descartados['linha de totalizador do relatorio'] = (descartados['linha de totalizador do relatorio'] || 0) + 1;
+                            continue;
+                        }
+                        // Sem data de pagamento a despesa era carimbada com "hoje", caindo no
+                        // mes errado e distorcendo qualquer comparativo por periodo.
+                        if (!dataPgto) {
+                            descartados['sem data de pagamento valida'] = (descartados['sem data de pagamento valida'] || 0) + 1;
+                            continue;
+                        }
+
                         registros.push({
                             tipo: 'DESPESA',
                             descricao: desc || 'Diversos',
@@ -170,7 +217,7 @@ export class ImportacaoService {
                             categoria: categoria,
                             centroDeCusto: centro,
                             contaBancaria: conta,
-                            dataPagamento: dataPgto || new Date(),
+                            dataPagamento: dataPgto,
                             valor: Math.abs(valor) // Despesas são sempre positivas na base
                         });
                     }
@@ -179,6 +226,16 @@ export class ImportacaoService {
                 // Filtrar e Inserir
                 const registrosValidos = registros.filter(r => r.valor > 0);
                 console.log(`[ETL] Registros validados para DESPESAS: ${registrosValidos.length}`);
+                if (Object.keys(descartados).length > 0) {
+                    console.warn('[ETL] Linhas descartadas em DESPESAS:', descartados);
+                }
+                if (rows.length > 0 && registrosValidos.length < rows.length * 0.5 && monthHeaders.length === 0) {
+                    throw new Error(
+                        `Arquivo rejeitado: apenas ${registrosValidos.length} de ${rows.length} linhas sao lancamentos validos. ` +
+                        `Motivos: ${Object.entries(descartados).map(([m, q]) => `${m} (${q})`).join('; ') || 'valor zerado ou nao numerico'}. ` +
+                        `Verifique se o CSV e o relatorio de despesas e se tem as colunas de data de pagamento e valor.`
+                    );
+                }
                 
                 if (registrosValidos.length > 0) {
                     const minDate = new Date(Math.min(...registrosValidos.map(r => r.dataPagamento.getTime())));
@@ -213,30 +270,63 @@ export class ImportacaoService {
                 }
 
             } else if (tipo === 'RECEITAS') {
+                const descartar = (motivo: string) => {
+                    descartados[motivo] = (descartados[motivo] || 0) + 1;
+                    return null;
+                };
+
                 const registros = rows.map(row => {
                     // Contas a Receber
                     const dataComp = this.parseDate(this.getFlexValue(row, ['data_de_competencia', 'competencia', 'emissao', 'data']));
                     const dataVenc = this.parseDate(this.getFlexValue(row, ['vencimento', 'data_de_vencimento', 'venc']));
                     const valor = this.parseCurrency(this.getFlexValue(row, ['valor_total', 'valor', 'saldo', 'valor_recebido']));
-                    const status = this.getFlexValue(row, ['status', 'situacao', 'estado']) || 'VENCIDO';
+                    const statusBruto = this.getFlexValue(row, ['status', 'situacao', 'estado']);
                     const cli = this.getFlexValue(row, ['cliente', 'nome_do_cliente', 'pessoa']);
                     const grupo = this.getFlexValue(row, ['grupo', 'rede/grupo', 'rede', 'grupo_economico']) || 'Sem Grupo';
                     const desc = this.getFlexValue(row, ['descricao', 'historico', 'observacao']) || '';
                     const nf = this.getFlexValue(row, ['nota_fiscal', 'nf', 'n_nf']) || '';
 
+                    // Rodapes e subtotais do relatorio nao sao titulos.
+                    if (this.isLinhaTotalizadora(cli, desc)) return descartar('linha de totalizador do relatorio');
+                    // Sem vencimento nao da para dizer se esta vencido — antes virava "hoje",
+                    // o que jogava a linha direto para o balde de inadimplencia.
+                    if (!dataVenc) return descartar('sem data de vencimento valida');
+                    // Sem status reconhecido nao da para dizer se esta em aberto — antes
+                    // assumia 'VENCIDO', inflando a inadimplencia com titulos ja quitados.
+                    const status = this.normalizeStatusReceita(statusBruto, dataVenc);
+                    if (!status) {
+                        return descartar(statusBruto
+                            ? `status nao reconhecido ("${String(statusBruto).trim()}")`
+                            : 'sem coluna de status');
+                    }
+                    if (status === 'Cancelado') return descartar('titulo cancelado');
+                    if (!(Math.abs(valor) > 0)) return descartar('valor zerado ou nao numerico');
+
                     return {
                         cliente: cli || 'Diversos',
                         grupo: grupo,
                         dataCompetencia: dataComp,
-                        dataVencimento: dataVenc || new Date(),
+                        dataVencimento: dataVenc,
                         valor: Math.abs(valor),
                         status: status,
                         descricao: desc,
                         numeroNotaFiscal: nf
                     };
-                }).filter(r => r.valor > 0 && r.dataVencimento != null);
+                }).filter((r): r is NonNullable<typeof r> => r !== null);
 
                 console.log(`[ETL] Registros validados para RECEITAS: ${registros.length}`);
+                if (Object.keys(descartados).length > 0) {
+                    console.warn('[ETL] Linhas descartadas em RECEITAS:', descartados);
+                }
+                // Se o layout do arquivo nao bate com nenhum alias conhecido, quase tudo
+                // e descartado. Melhor falhar alto do que gravar uma carga sem sentido.
+                if (rows.length > 0 && registros.length < rows.length * 0.5) {
+                    throw new Error(
+                        `Arquivo rejeitado: apenas ${registros.length} de ${rows.length} linhas sao titulos validos. ` +
+                        `Motivos: ${Object.entries(descartados).map(([m, q]) => `${m} (${q})`).join('; ')}. ` +
+                        `Verifique se o CSV e o relatorio de Contas a Receber e se tem as colunas de vencimento, valor e status.`
+                    );
+                }
 
                 if (registros.length > 0) {
                     const minDate = new Date(Math.min(...registros.map(r => r.dataVencimento.getTime())));
@@ -247,6 +337,15 @@ export class ImportacaoService {
 
                     console.log(`[ETL] Substituindo RECEITAS com vencimento no período: ${start.toISOString()} até ${end.toISOString()}`);
                     
+                    // O CSV passa a ser a verdade do periodo: apaga tudo na faixa (inclusive o
+                    // que veio do sync da API) para nao duplicar titulos e inflar a inadimplencia.
+                    const daApi = await prisma.contaReceber.count({
+                        where: { dataVencimento: { gte: start, lte: end }, importacaoId: null }
+                    });
+                    if (daApi > 0) {
+                        console.warn(`[ETL] ${daApi} titulos vindos do sync da API serao substituidos pelo CSV neste periodo. Rode o sync novamente se quiser reverter.`);
+                    }
+
                     await prisma.contaReceber.deleteMany({
                         where: {
                             dataVencimento: { gte: start, lte: end }
@@ -357,7 +456,7 @@ export class ImportacaoService {
             }
 
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-            return { totalLido: rows.length, totalInserido: inseridos };
+            return { totalLido: rows.length, totalInserido: inseridos, descartados };
 
         } catch (error) {
             console.error('[ETL] Falha crítica:', error);

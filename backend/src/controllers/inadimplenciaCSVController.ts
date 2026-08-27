@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { STATUS_PENDENTES } from '../utils/statusReceita';
 
 const prisma = new PrismaClient();
 
@@ -17,7 +18,7 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
 
         const pendentes = await prisma.contaReceber.findMany({
             where: {
-                status: { notIn: ['Recebido', 'Baixado', 'Pago'] },
+                status: { in: STATUS_PENDENTES },
                 dataVencimento: {
                     gte: dataInicio,
                     lt:  dataFim,
