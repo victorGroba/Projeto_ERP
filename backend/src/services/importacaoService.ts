@@ -268,8 +268,92 @@ export class ImportacaoService {
                     const result = await prisma.contaReceber.createMany({ data: registrosComImportacaoId });
                     inseridos = result.count;
                 }
+            } else if (tipo === 'ENTRADAS') {
+                const registros: any[] = [];
+                const monthHeaders = headersList.filter(h => this.parseMonthHeaderToDate(h) !== null);
+
+                if (monthHeaders.length > 0) {
+                    console.log(`[ETL] Formato MATRIZ detectado para ENTRADAS.`);
+                    for (const row of rows) {
+                        const categoria = this.getFlexValue(row, ['categoria']) || 'Receitas';
+                        if (categoria.toLowerCase().includes('total do per')) continue;
+
+                        for (const monthHeader of monthHeaders) {
+                            const valor = this.parseCurrency(row[monthHeader]);
+                            if (valor !== 0) {
+                                const dataPgto = this.parseMonthHeaderToDate(monthHeader);
+                                if (dataPgto) {
+                                    registros.push({
+                                        tipo: 'RECEITA',
+                                        descricao: categoria,
+                                        fornecedor: 'N/A',
+                                        categoria: categoria,
+                                        centroDeCusto: 'N/A',
+                                        contaBancaria: 'N/A',
+                                        dataPagamento: dataPgto,
+                                        valor: Math.abs(valor)
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    console.log(`[ETL] Formato LISTA detectado para ENTRADAS.`);
+                    for (const row of rows) {
+                        const dataPgto = this.parseDate(this.getFlexValue(row, ['data_de_pagamento', 'pagamento', 'data', 'data_de_recebimento', 'recebimento']));
+                        const categoria = this.getFlexValue(row, ['categoria', 'classificacao', 'tipo']) || 'Receitas';
+                        const valor = this.parseCurrency(this.getFlexValue(row, ['valor_liquidado', 'valor', 'total', 'valor_recebido', 'valor_pago']));
+                        const desc = this.getFlexValue(row, ['descricao', 'historico']) || categoria;
+
+                        registros.push({
+                            tipo: 'RECEITA',
+                            descricao: desc,
+                            fornecedor: 'N/A',
+                            categoria: categoria,
+                            centroDeCusto: 'N/A',
+                            contaBancaria: 'N/A',
+                            dataPagamento: dataPgto || new Date(),
+                            valor: Math.abs(valor)
+                        });
+                    }
+                }
+
+                const registrosValidos = registros.filter(r => r.valor > 0);
+                console.log(`[ETL] Registros validados para ENTRADAS: ${registrosValidos.length}`);
+
+                if (registrosValidos.length > 0) {
+                    const minDate = new Date(Math.min(...registrosValidos.map(r => r.dataPagamento.getTime())));
+                    const maxDate = new Date(Math.max(...registrosValidos.map(r => r.dataPagamento.getTime())));
+
+                    const start = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
+                    const end = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth() + 1, 0, 23, 59, 59));
+
+                    console.log(`[ETL] Substituindo ENTRADAS no período: ${start.toISOString()} até ${end.toISOString()}`);
+
+                    await prisma.lancamento.deleteMany({
+                        where: {
+                            tipo: 'RECEITA',
+                            dataPagamento: { gte: start, lte: end }
+                        }
+                    });
+
+                    const historico = await prisma.historicoImportacao.create({
+                        data: {
+                            tipo: 'ENTRADAS',
+                            arquivoNome: path.basename(filePath),
+                            dataInicio: start,
+                            dataFim: end,
+                            qtdRegistros: registrosValidos.length
+                        }
+                    });
+
+                    const registrosComImportacaoId = registrosValidos.map(r => ({ ...r, importacaoId: historico.id }));
+                    const result = await prisma.lancamento.createMany({ data: registrosComImportacaoId });
+                    inseridos = result.count;
+                }
+
             } else {
-                throw new Error('Tipo não suportado. Use DESPESAS ou RECEITAS.');
+                throw new Error('Tipo não suportado. Use DESPESAS, RECEITAS ou ENTRADAS.');
             }
 
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);

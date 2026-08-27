@@ -1,0 +1,267 @@
+/* ── Relatório Anual Comparativo ─────────────────────────────────── */
+
+.rel-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 3rem;
+}
+
+/* ── Filtro de ano ── */
+.rel-year-filter {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.rel-year-filter label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.rel-year-filter select {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-main);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Upload de entradas ── */
+.rel-upload-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.rel-upload-section .select {
+  min-width: 160px;
+}
+
+.rel-upload-hint {
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+}
+
+/* ── Seções (Entradas, Mats/Serv, Despesas) ── */
+.rel-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.rel-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.rel-section-head:hover {
+  background: var(--surface-hover);
+}
+
+.rel-section-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.rel-section-head .rel-section-totals {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ── Tabela de dados ── */
+.rel-table-wrap {
+  overflow-x: auto;
+}
+
+.rel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.rel-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-hover);
+  padding: 0.625rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.rel-table th:first-child { text-align: left; }
+
+.rel-table td {
+  padding: 0.5rem 1rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-table td:first-child {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-main);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rel-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+
+.rel-table tfoot td {
+  background: var(--surface-hover);
+  font-weight: 800;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: none;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* ── Valores negativos ── */
+.rel-val-neg {
+  color: var(--danger, #dc2626);
+}
+
+.rel-val-pos {
+  color: var(--success, #059669);
+  font-weight: 700;
+}
+
+/* ── Resultado Operacional ── */
+.rel-resultado {
+  background: var(--surface);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.rel-resultado .rel-table tfoot td {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  font-size: 1rem;
+  padding: 1rem;
+}
+
+/* ── Grupo "total mats/serv" e "total despesas" ── */
+.rel-group-total td {
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface-hover)) !important;
+  font-weight: 800 !important;
+  border-top: 2px solid var(--border-strong);
+  font-size: 0.875rem;
+}
+
+/* ── Badge de CC ── */
+.rel-cc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0;
+}
+
+/* ── KPI cards condensados ── */
+.rel-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.rel-kpi {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.125rem;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.rel-kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--kpi-accent, var(--border-strong));
+}
+
+.rel-kpi-label {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.rel-kpi-value {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin-top: 0.375rem;
+}
+
+.rel-kpi-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+/* ── Responsividade ── */
+@media (max-width: 768px) {
+  .rel-section-head .rel-section-totals {
+    display: none;
+  }
+  .rel-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+}

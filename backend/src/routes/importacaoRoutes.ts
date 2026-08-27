@@ -15,9 +15,9 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req: Reques
             return;
         }
 
-        const tipo = req.body.tipo; // "DESPESAS" ou "RECEITAS"
+        const tipo = req.body.tipo; // "DESPESAS", "RECEITAS" ou "ENTRADAS"
         if (!tipo) {
-            res.status(400).json({ error: 'Tipo do arquivo não especificado (DESPESAS ou RECEITAS).' });
+            res.status(400).json({ error: 'Tipo do arquivo não especificado (DESPESAS, RECEITAS ou ENTRADAS).' });
             return;
         }
 

@@ -12,6 +12,7 @@ import { getComparativoInadimplencia } from '../controllers/inadimplenciaCompara
 import { getComparativoCC } from '../controllers/comparativoCCController';
 import { getIndicadoresApi } from '../controllers/apiContaAzulController';
 import { getIndices } from '../controllers/indicesController';
+import { getRelatorioAnual } from '../controllers/relatorioAnualController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -49,6 +50,9 @@ router.get('/despesas/resumo-periodo', authMiddleware, getResumoDespesasPeriodo)
 router.get('/resultado/mensal', authMiddleware, getResultadoMensal);
 router.get('/resultado/receitas-tipo', authMiddleware, getReceitasPorTipo);
 router.get('/resultado/outras-saidas', authMiddleware, getOutrasSaidas);
+
+// Relatório anual comparativo (Entradas + Despesas por CC + Resultado)
+router.get('/relatorio-anual', authMiddleware, getRelatorioAnual);
 
 // Indicadores buscados ao vivo na API v2 do Conta Azul (aba "API")
 router.get('/conta-azul/indicadores', authMiddleware, getIndicadoresApi);
