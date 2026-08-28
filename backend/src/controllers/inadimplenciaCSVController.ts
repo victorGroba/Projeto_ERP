@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { STATUS_PENDENTES, chaveDevedor } from '../utils/statusReceita';
+import { STATUS_PENDENTES } from '../utils/statusReceita';
+import { resolverGruposPorCliente, chaveDevedor } from '../utils/grupoEconomico';
 
 const prisma = new PrismaClient();
 
@@ -20,6 +21,8 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
 
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
+
+        const gruposPorCliente = await resolverGruposPorCliente(prisma);
 
         const pendentes = await prisma.contaReceber.findMany({
             where: {
@@ -59,7 +62,7 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
             else if (diffDias <= 90) agingBuckets.de_61_a_90 += valor;
             else                     agingBuckets.mais_de_90 += valor;
 
-            const key = chaveDevedor(conta.grupo, conta.cliente);
+            const key = chaveDevedor(conta.cliente, gruposPorCliente);
             rankingDevedores[key] = (rankingDevedores[key] || 0) + valor;
         });
 

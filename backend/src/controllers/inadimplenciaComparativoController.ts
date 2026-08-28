@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
 import { PrismaClient, ContaReceber } from '@prisma/client';
-import { STATUS_PENDENTES, chaveDevedor } from '../utils/statusReceita';
+import { STATUS_PENDENTES } from '../utils/statusReceita';
+import { resolverGruposPorCliente, chaveDevedor } from '../utils/grupoEconomico';
 
 const prisma = new PrismaClient();
 
 async function calcularAging(dataInicio: Date, dataFim: Date) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
+
+    const gruposPorCliente = await resolverGruposPorCliente(prisma);
 
     const pendentes = await prisma.contaReceber.findMany({
         where: {
@@ -35,7 +38,7 @@ async function calcularAging(dataInicio: Date, dataFim: Date) {
         else if (diffDias <= 90)  aging.de_61_a_90 += valor;
         else                      aging.mais_de_90  += valor;
 
-        const key = chaveDevedor(conta.grupo, conta.cliente);
+        const key = chaveDevedor(conta.cliente, gruposPorCliente);
         rankingDevedores[key] = (rankingDevedores[key] || 0) + valor;
     });
 
