@@ -110,9 +110,13 @@ const VistaoGeral: React.FC = () => {
     const [recebidoPeriodo, setRecebidoPeriodo] = useState(0);
     const [loadPeriodo,     setLoadPeriodo]     = useState(false);
 
-    // ── fetch base (aging) — uma vez ───────────────────────────────────────
+    // ── fetch do aging — acompanha o período selecionado ───────────────────
+    // Antes rodava uma vez só e sem parâmetros, então o card ficava preso no ano
+    // corrente e não reagia ao filtro: escolher "de 01/01/2025 até hoje" não mudava
+    // nada, e a dívida vencida no ano anterior simplesmente não aparecia.
     useEffect(() => {
-        axios.get(`${API}/api/dashboard/inadimplencia/aging`)
+        const { de, ate } = periodoAplic;
+        axios.get(`${API}/api/dashboard/inadimplencia/aging?de=${de}&ate=${ate}`)
             .then(r => {
                 const { totalAtraso, aging, topDevedores } = r.data;
                 setKpiBase({
@@ -123,7 +127,7 @@ const VistaoGeral: React.FC = () => {
             })
             .catch(console.error)
             .finally(() => setLoadBase(false));
-    }, []);
+    }, [periodoAplic]);
 
     // ── fetch por período ──────────────────────────────────────────────────
     useEffect(() => {
@@ -357,7 +361,10 @@ const VistaoGeral: React.FC = () => {
                     </div>
                     <div style={cardLabel}>Total Vencido em Atraso</div>
                     <div style={cardValue(false)}>{fmt(kpiBase.totalAtraso)}</div>
-                    <div style={cardSubLabel}>Risco crítico (+90d): {fmt(kpiBase.riscoGrave)}</div>
+                    <div style={cardSubLabel}>
+                        Risco crítico (+90d): {fmt(kpiBase.riscoGrave)}
+                        <span style={{ display: 'block', marginTop: 2 }}>Vencimento em {periodoLabel}</span>
+                    </div>
                 </button>
 
                 {/* Card 3: Recebido no Período */}

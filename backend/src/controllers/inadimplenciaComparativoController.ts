@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient, ContaReceber } from '@prisma/client';
-import { STATUS_PENDENTES } from '../utils/statusReceita';
+import { STATUS_PENDENTES, chaveDevedor } from '../utils/statusReceita';
 
 const prisma = new PrismaClient();
 
@@ -35,9 +35,7 @@ async function calcularAging(dataInicio: Date, dataFim: Date) {
         else if (diffDias <= 90)  aging.de_61_a_90 += valor;
         else                      aging.mais_de_90  += valor;
 
-        const key = conta.grupo
-            ? `${conta.grupo} (Grupo)`
-            : (conta.cliente || 'Sem Cliente');
+        const key = chaveDevedor(conta.grupo, conta.cliente);
         rankingDevedores[key] = (rankingDevedores[key] || 0) + valor;
     });
 

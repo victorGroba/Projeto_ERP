@@ -1,17 +1,22 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { STATUS_PENDENTES } from '../utils/statusReceita';
+import { STATUS_PENDENTES, chaveDevedor } from '../utils/statusReceita';
 
 const prisma = new PrismaClient();
 
 export const getInadimplenciaAging = async (req: Request, res: Response): Promise<void> => {
     try {
         const { year, de, ate } = req.query;
-        const targetYear = year ? parseInt(year as string, 10) : new Date().getFullYear();
 
-        // Filtro de data: usa "de/ate" se fornecidos, senão usa o ano inteiro
-        const dataInicio = de ? new Date(de as string) : new Date(targetYear, 0, 1);
-        const dataFim    = ate ? new Date(ate as string) : new Date(targetYear + 1, 0, 1);
+        // Filtro de data por vencimento. Sem parametros, NAO restringe: divida vencida
+        // nao deixa de existir na virada do ano, e o default anterior (ano corrente)
+        // escondia silenciosamente o atraso dos anos anteriores.
+        const dataInicio = de   ? new Date(de as string)
+                         : year ? new Date(parseInt(year as string, 10), 0, 1)
+                         : new Date(1970, 0, 1);
+        const dataFim    = ate   ? new Date(`${ate}T23:59:59`)
+                         : year  ? new Date(parseInt(year as string, 10) + 1, 0, 1)
+                         : new Date(9999, 0, 1);
 
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
@@ -54,9 +59,7 @@ export const getInadimplenciaAging = async (req: Request, res: Response): Promis
             else if (diffDias <= 90) agingBuckets.de_61_a_90 += valor;
             else                     agingBuckets.mais_de_90 += valor;
 
-            const key = conta.grupo
-                ? `${conta.grupo} (Grupo)`
-                : (conta.cliente || 'Sem Cliente');
+            const key = chaveDevedor(conta.grupo, conta.cliente);
             rankingDevedores[key] = (rankingDevedores[key] || 0) + valor;
         });
 

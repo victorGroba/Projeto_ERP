@@ -15,6 +15,9 @@ services:
       - DATABASE_URL=file:/app/data/prod.db
       - NODE_ENV=production
       - PORT=3001
+      # Sem TZ o container roda em UTC: depois das 21h (BRT) o servidor ja virou o
+      # dia e os titulos que vencem hoje passam a contar como vencidos.
+      - TZ=America/Sao_Paulo
       # Admin inicial criado no primeiro start (troque a senha!)
       - ADMIN_EMAIL=admin@labmattos.com.br
       - ADMIN_PASSWORD=troque-esta-senha

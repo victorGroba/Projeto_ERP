@@ -19,3 +19,21 @@ export const STATUS_PENDENTES: string[] = [STATUS_RECEITA.VENCIDO, STATUS_RECEIT
 
 /** Filtro Prisma para titulos em aberto. */
 export const wherePendentes = () => ({ status: { in: STATUS_PENDENTES } });
+
+/**
+ * Valores de `grupo` que nao sao grupo economico de verdade — sao o default do
+ * ETL/sync ou nomes genericos de centro de custo. O sync grava em `grupo` o
+ * primeiro centro de custo do titulo, entao rotulos assim aparecem no lugar do
+ * nome do cliente e tornam o ranking de devedores inutil.
+ */
+const GRUPOS_GENERICOS = new Set(['sem grupo', 'cliente diversos', 'diversos', 'financeiro', '']);
+
+/**
+ * Chave de agrupamento do ranking de devedores: usa o grupo economico quando ele
+ * existe de fato, senao o nome do cliente.
+ */
+export const chaveDevedor = (grupo: string | null, cliente: string | null): string => {
+    const g = (grupo || '').trim();
+    if (g && !GRUPOS_GENERICOS.has(g.toLowerCase())) return `${g} (Grupo)`;
+    return (cliente || '').trim() || 'Sem Cliente';
+};
