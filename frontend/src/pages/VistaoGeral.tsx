@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
     TrendingDown, AlertTriangle, Landmark, TrendingUp,
     ArrowUpRight, ArrowDownRight, Loader2, ChevronRight,
-    SlidersHorizontal, Check,
+    SlidersHorizontal, Check, RefreshCw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PeriodFilterBar from '../components/PeriodFilterBar';
@@ -110,6 +110,10 @@ const VistaoGeral: React.FC = () => {
     const [recebidoPeriodo, setRecebidoPeriodo] = useState(0);
     const [loadPeriodo,     setLoadPeriodo]     = useState(false);
 
+    // ── idade dos dados ────────────────────────────────────────────────────
+    const [ultimoSync, setUltimoSync] = useState<{ em: string; modo: string } | null>(null);
+    const [syncCarregado, setSyncCarregado] = useState(false);
+
     // ── fetch do aging — acompanha o período selecionado ───────────────────
     // Antes rodava uma vez só e sem parâmetros, então o card ficava preso no ano
     // corrente e não reagia ao filtro: escolher "de 01/01/2025 até hoje" não mudava
@@ -144,6 +148,16 @@ const VistaoGeral: React.FC = () => {
           .finally(() => setLoadPeriodo(false));
     }, [periodoAplic]);
 
+    // Quando o token OAuth expira, o sync para de rodar sem avisar ninguém e a tela
+    // continua mostrando dado velho com cara de dado fresco — foi assim que o
+    // dashboard exibiu números de dois meses antes. Aqui a idade fica explícita.
+    useEffect(() => {
+        axios.get(`${API}/api/sync/status`)
+            .then(r => setUltimoSync(r.data?.ultimoSync || null))
+            .catch(() => setUltimoSync(null))
+            .finally(() => setSyncCarregado(true));
+    }, []);
+
     // fechar dropdown ao clicar fora
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -161,6 +175,17 @@ const VistaoGeral: React.FC = () => {
     const varDespesa = despesaAnterior > 0
         ? ((despesaAtual - despesaAnterior) / despesaAnterior) * 100
         : 0;
+
+    // Incremental é feito para uso diário: passando de 1 dia já vale destacar,
+    // e acima de 7 o número na tela provavelmente já não descreve a realidade.
+    const diasDesdeSync = ultimoSync
+        ? Math.floor((Date.now() - new Date(ultimoSync.em).getTime()) / 86_400_000)
+        : null;
+    const nivelSync: 'ok' | 'atencao' | 'alerta' | 'nunca' =
+        diasDesdeSync === null ? 'nunca'
+        : diasDesdeSync <= 1   ? 'ok'
+        : diasDesdeSync <= 7   ? 'atencao'
+        : 'alerta';
 
     const qtdExcluidas = categoriasExcluidas.size;
     const periodoLabel = `${fmtDateLabel(periodoAplic.de)} – ${fmtDateLabel(periodoAplic.ate)}`;
@@ -214,9 +239,25 @@ const VistaoGeral: React.FC = () => {
                 <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                     Visão Geral
                 </h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                    Resumo financeiro · {hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                        Resumo financeiro · {hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                    {syncCarregado && (
+                        <button
+                            onClick={() => navigate('/importacao')}
+                            title={ultimoSync
+                                ? `Última sincronização com a Conta Azul: ${new Date(ultimoSync.em).toLocaleString('pt-BR')} (${ultimoSync.modo})`
+                                : 'Nenhuma sincronização registrada'}
+                            style={chipSyncStyle(nivelSync)}
+                        >
+                            <RefreshCw size={12} />
+                            {nivelSync === 'nunca'
+                                ? 'Dados nunca sincronizados'
+                                : `Dados de ${fmtIdade(diasDesdeSync as number)}`}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* ── Barra de Filtros ── */}
@@ -479,6 +520,28 @@ const VistaoGeral: React.FC = () => {
 };
 
 // ── Estilos compartilhados ────────────────────────────────────────────────────
+
+const fmtIdade = (dias: number) =>
+    dias <= 0 ? 'hoje' : dias === 1 ? 'ontem' : `${dias} dias atrás`;
+
+const CORES_SYNC = {
+    ok:      { fg: 'var(--success)', bg: 'var(--success-light)', bd: 'var(--success)' },
+    atencao: { fg: '#b45309',        bg: '#fef3c7',              bd: '#f59e0b'        },
+    alerta:  { fg: 'var(--danger)',  bg: 'var(--danger-light)',  bd: 'var(--danger)'  },
+    nunca:   { fg: 'var(--danger)',  bg: 'var(--danger-light)',  bd: 'var(--danger)'  },
+} as const;
+
+const chipSyncStyle = (nivel: keyof typeof CORES_SYNC): React.CSSProperties => {
+    const c = CORES_SYNC[nivel];
+    return {
+        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+        padding: '0.15rem 0.5rem', borderRadius: '1rem',
+        fontSize: '0.75rem', fontWeight: 600,
+        color: c.fg, background: c.bg,
+        border: `1px solid ${nivel === 'ok' ? 'transparent' : c.bd}`,
+        cursor: 'pointer',
+    };
+};
 
 const btnSecStyle: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: '0.375rem',

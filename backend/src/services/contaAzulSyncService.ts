@@ -337,6 +337,39 @@ async function syncSaldosBancarios(api: ContaAzulAPI): Promise<number> {
 
 // Trava simples: evita duas sincronizações rodando ao mesmo tempo (deleteMany +
 // createMany de duas execuções concorrentes duplicaria/corromperia os dados).
+const CHAVE_ULTIMO_SYNC = 'ultimo_sync_ok';
+
+/**
+ * Registra o termino de um sync bem-sucedido.
+ *
+ * Sem isso nao havia como saber que os dados estavam velhos: quando o refresh
+ * token expirou, o sync parou de rodar e o dashboard seguiu exibindo numeros de
+ * dois meses antes com a mesma cara de dado fresco.
+ */
+async function registrarSyncOk(modo: string, janela: string): Promise<void> {
+    const valor = JSON.stringify({ em: new Date().toISOString(), modo, janela });
+    await prisma.appConfig.upsert({
+        where:  { key: CHAVE_ULTIMO_SYNC },
+        update: { value: valor },
+        create: { key: CHAVE_ULTIMO_SYNC, value: valor },
+    });
+}
+
+export async function getUltimoSyncOk(): Promise<{ em: string; modo: string; janela?: string } | null> {
+    const registro = await prisma.appConfig.findUnique({ where: { key: CHAVE_ULTIMO_SYNC } });
+    if (registro) {
+        try { return JSON.parse(registro.value); } catch { /* valor corrompido: cai no fallback */ }
+    }
+    // Bases que sincronizaram antes deste registro existir: usa a gravacao mais
+    // recente vinda da API como aproximacao, em vez de dizer "nunca sincronizado".
+    const ultimo = await prisma.contaReceber.findFirst({
+        where:   { importacaoId: null },
+        orderBy: { createdAt: 'desc' },
+        select:  { createdAt: true },
+    });
+    return ultimo ? { em: ultimo.createdAt.toISOString(), modo: 'estimado pelos dados' } : null;
+}
+
 // Um sync completo pode levar bem mais que o timeout do navegador/proxy — se o
 // usuário achar que "falhou" e tentar de novo, a segunda tentativa cai aqui em
 // vez de competir pelas mesmas tabelas.
@@ -402,6 +435,7 @@ export async function runIncrementalSync(): Promise<{ success: boolean; message:
 
         await persistTokens(api);
         const details = { despesas, receitas, saldos, modo: 'incremental', janela: `${inicio} → ${fim}` };
+        await registrarSyncOk(details.modo, details.janela);
         console.log('[Sync] ✅ Incremental concluído:', details);
         return { success: true, message: 'Sincronização incremental concluída!', details };
     } catch (error: any) {
@@ -427,6 +461,7 @@ export async function runCustomSync(inicio: string, fim: string): Promise<{ succ
 
         await persistTokens(api);
         const details = { despesas, receitas, saldos, modo: 'custom', janela: `${inicio} → ${fim}` };
+        await registrarSyncOk(details.modo, details.janela);
         console.log('[Sync] ✅ Período concluído:', details);
         return { success: true, message: 'Sincronização do período concluída!', details };
     } catch (error: any) {
@@ -454,6 +489,7 @@ export async function runFullSync(): Promise<{ success: boolean; message: string
 
         await persistTokens(api);
         const details = { despesas, receitas, saldos, modo: 'full', janela: `${inicio} → ${fim}` };
+        await registrarSyncOk(details.modo, details.janela);
         console.log('[Sync] ✅ Full concluído:', details);
         return { success: true, message: 'Sincronização completa concluída!', details };
     } catch (error: any) {

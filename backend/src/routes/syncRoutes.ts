@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { runIncrementalSync, runFullSync, runCustomSync, getSyncStatus } from '../services/contaAzulSyncService';
+import { runIncrementalSync, runFullSync, runCustomSync, getSyncStatus, getUltimoSyncOk } from '../services/contaAzulSyncService';
 
 const router = Router();
 
-// Status do sync em andamento (a UI faz polling nisso pra mostrar progresso/tempo estimado)
-router.get('/sync/status', authMiddleware, (req: Request, res: Response): void => {
-    res.json(getSyncStatus());
+// Status do sync em andamento (a UI faz polling nisso pra mostrar progresso/tempo
+// estimado) + quando foi o ultimo sync bem-sucedido, para a Visao Geral avisar
+// quando os dados estao velhos.
+router.get('/sync/status', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+    res.json({ ...getSyncStatus(), ultimoSync: await getUltimoSyncOk() });
 });
 
 // Incremental: últimos 60 dias + próximos 90 — rápido, para uso diário

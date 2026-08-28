@@ -127,10 +127,32 @@ docker compose down                     # para (mantém o volume/dados)
 docker exec -it ca-bi-dashboard sh      # shell dentro do container
 ```
 
+### Auditoria das contas a receber
+
+Detecta cargas de CSV invalidadas (linhas sem vencimento/status que o ETL antigo
+carimbava como vencidas) e status fora do vocabulário canônico. Roda em modo
+relatório por padrão:
+
+```bash
+# só relatório — não altera nada
+docker exec -it ca-bi-dashboard node dist/scripts/auditarContasReceber.js
+
+# aplica as correções (faça backup do volume antes)
+docker exec -it ca-bi-dashboard node dist/scripts/auditarContasReceber.js --apply
+```
+
+Backup do volume antes de qualquer `--apply`:
+
+```bash
+docker run --rm -v ca-bi-data:/data -v $(pwd):/backup alpine   tar czf /backup/bi-backup-$(date +%F).tar.gz /data
+```
+
 ---
 
 ## Observações importantes
 
 - **Tokens da Conta Azul:** o app é de *desenvolvimento* no portal, então o refresh token expira em alguns dias. Quando isso acontecer, é só reconectar pela tela de **Configurações**. Para uso permanente sem reconectar, solicite a **promoção do app para produção** no portal da Conta Azul.
+
+  ⚠️ **Isso já causou problema em produção:** o token expirou, o sync parou de rodar e o dashboard seguiu exibindo números de dois meses antes, sem nenhum aviso. Hoje a Visão Geral mostra um selo com a idade dos dados (verde até 1 dia, amarelo até 7, vermelho acima disso), mas o selo só avisa — quem resolve é a promoção do app para produção.
 - **Banco:** SQLite em volume. Os dados são 100% re-sincronizáveis da API, então mesmo perdendo o volume, um "Carga Completa" reconstrói tudo.
 - **Backup simples:** `docker run --rm -v ca-bi-data:/data -v $(pwd):/backup alpine tar czf /backup/bi-backup.tar.gz /data`
