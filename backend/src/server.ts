@@ -12,6 +12,7 @@ import csvDashboardRoutes from './routes/csvDashboardRoutes';
 import syncRoutes from './routes/syncRoutes';
 import oauthRoutes from './routes/oauthRoutes';
 import auditRoutes from './routes/auditRoutes';
+import clientesRoutes from './routes/clientesRoutes';
 
 dotenv.config();
 
@@ -40,6 +41,9 @@ app.use('/api/oauth', oauthRoutes);
 
 // Rotas de Auditoria de Dados
 app.use('/api/audit', auditRoutes);
+
+// Cadastro de clientes e faturamento agrupado pelo codigo cadastral
+app.use('/api/clientes', clientesRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

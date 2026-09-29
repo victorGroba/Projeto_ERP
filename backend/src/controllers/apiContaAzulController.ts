@@ -95,7 +95,7 @@ async function buscarCadastros() {
             api.getCategorias(1, 1),
             api.getCentrosDeCusto(1, 1),
             api.getContasFinanceiras(),
-            api.getPessoas({ pagina: 1, tamanhoPagina: 1 }),
+            api.getPessoas({ pagina: 1, tamanhoPagina: 10 }),
         ]);
 
         const listaContas = Array.isArray(contas) ? contas : (contas?.itens || []);
@@ -105,7 +105,7 @@ async function buscarCadastros() {
             disponivel: true,
             categorias: categorias?.itens_totais ?? 0,
             centrosDeCusto: centros?.itens_totais ?? 0,
-            pessoas: pessoas?.itens_totais ?? 0,
+            pessoas: pessoas?.totalItems ?? pessoas?.itens_totais ?? 0,
             contasFinanceiras: listaContas.map((c: any) => ({ nome: c.nome || c.descricao || 'Conta', saldo: c.saldo ?? null })),
             saldoTotalContas: Math.round(saldoTotal * 100) / 100,
         };

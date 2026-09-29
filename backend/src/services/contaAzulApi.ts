@@ -215,13 +215,22 @@ export class ContaAzulAPI {
         pagina?: number;
         tamanhoPagina?: number;
         busca?: string;
+        tipoPerfil?: 'Cliente' | 'Fornecedor' | 'Transportadora';
+        comEndereco?: boolean;
     } = {}): Promise<any> {
         const queryParams = new URLSearchParams();
         queryParams.append('pagina', String(params.pagina || 1));
-        queryParams.append('tamanhoPagina', String(params.tamanhoPagina || 200));
+        queryParams.append('tamanho_pagina', String(params.tamanhoPagina || 200));
         if (params.busca) queryParams.append('busca', params.busca);
+        queryParams.append('tipo_perfil', params.tipoPerfil || 'Cliente');
+        queryParams.append('com_endereco', String(params.comEndereco ?? true));
 
-        return this.getWithRetry(`${this.baseURL}/pessoa?${queryParams.toString()}`);
+        return this.getWithRetry(`${this.baseURL}/pessoas?${queryParams.toString()}`);
+    }
+
+    /** Cadastro completo de uma pessoa pelo UUID */
+    async getPessoaById(id: string): Promise<any> {
+        return this.getWithRetry(`${this.baseURL}/pessoas/${encodeURIComponent(id)}`);
     }
 
     // ============================================

@@ -40,6 +40,7 @@ model Lancamento {
 
 model ContaReceber {
   id              String   @id @default(uuid())
+  clienteId       String?  // UUID da pessoa na Conta Azul; permite cruzar com o cadastro sem depender do nome
   cliente         String
   grupo           String?  // Agrupar clientes do mesmo grupo econômico (ex: franquias)
   categoria       String?  // Tipo da receita (Serviços, Financeira, Venda Veículo...)
@@ -53,6 +54,32 @@ model ContaReceber {
 
   importacaoId    String?
   importacao      HistoricoImportacao? @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+
+  @@index([clienteId])
+}
+
+// Espelho do cadastro de Pessoas da Conta Azul. O `codigo` e a chave de negocio
+// usada para reunir CNPJs/nomes diferentes que pertencem ao mesmo grupo.
+model ClienteContaAzul {
+  id                String   @id
+  codigo            String?
+  nome              String
+  nomeEmpresa       String?
+  documento         String?
+  email             String?
+  telefoneCelular   String?
+  telefoneComercial String?
+  cidade            String?
+  uf                String?
+  tipoPessoa        String?
+  ativo             Boolean  @default(true)
+  criadoEm          DateTime?
+  alteradoEm        DateTime?
+  sincronizadoEm    DateTime @default(now())
+
+  @@index([codigo])
+  @@index([nome])
+  @@index([documento])
 }
 
 model SaldoBancario {

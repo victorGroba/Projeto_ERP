@@ -53,7 +53,7 @@ export async function getAPI(): Promise<ContaAzulAPI> {
     );
 }
 
-async function persistTokens(api: ContaAzulAPI): Promise<void> {
+export async function persistTokens(api: ContaAzulAPI): Promise<void> {
     await Promise.all([
         prisma.appConfig.upsert({
             where: { key: 'access_token_rj' },
@@ -284,6 +284,7 @@ async function syncReceitas(api: ContaAzulAPI, inicio: string, fim: string, repl
         .map((item: any) => {
             const dataVenc = parseApiDate(item.data_vencimento);
             return {
+                clienteId: item.cliente?.id || item.cliente?.uuid || item.id_cliente || null,
                 cliente: item.cliente?.nome || 'Sem cliente',
                 grupo: item.centros_de_custo?.[0]?.nome || 'Sem Grupo',
                 categoria: item.categorias?.[0]?.nome || 'Outras Receitas',
