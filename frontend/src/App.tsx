@@ -16,10 +16,11 @@ import ResultadosDiretoria from './pages/ResultadosDiretoria';
 import Indices from './pages/Indices';
 import RelatorioAnual from './pages/RelatorioAnual';
 import Clientes from './pages/Clientes';
+import CustosLaboratorio from './pages/CustosLaboratorio';
 import {
     LayoutDashboard, AlertTriangle, TrendingDown,
     LogOut, UploadCloud, LineChart, Settings, BookOpen,
-    PanelLeftClose, PanelLeftOpen, Plug, History, Presentation, Gauge, FileText, UsersRound
+    PanelLeftClose, PanelLeftOpen, Plug, History, Presentation, Gauge, FileText, UsersRound, FlaskConical
 } from 'lucide-react';
 import './index.css';
 
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
     { to: '/',              label: 'Visão Geral',      Icon: LayoutDashboard },
     { to: '/inadimplencia', label: 'Inadimplência',    Icon: AlertTriangle },
     { to: '/despesas',      label: 'Custos & Despesas',Icon: TrendingDown },
+    { to: '/custos-lab',    label: 'Custeio Analítico',Icon: FlaskConical },
     { to: '/resultados',    label: 'Resultados (Diretoria)', Icon: Presentation },
     { to: '/indices',       label: 'Índices Gerenciais', Icon: Gauge },
     { to: '/relatorio',     label: 'Relatório Anual',   Icon: FileText },
@@ -45,6 +47,7 @@ const PAGE_TITLES: Record<string, string> = {
     '/':               'Visão Geral',
     '/inadimplencia':  'Inadimplência',
     '/despesas':       'Custos & Despesas',
+    '/custos-lab':     'Custeio Analítico e Predição (Laboratório)',
     '/resultados':     'Resultados (Diretoria)',
     '/indices':        'Índices Gerenciais',
     '/relatorio':      'Relatório Anual',
@@ -136,6 +139,7 @@ function App() {
                             <Route path="/importacao"   element={<Importacao />} />
                             <Route path="/historico"    element={<HistoricoImportacoes />} />
                             <Route path="/despesas"     element={<Despesas />} />
+                            <Route path="/custos-lab"   element={<CustosLaboratorio />} />
                             <Route path="/resultados"   element={<ResultadosDiretoria />} />
                             <Route path="/indices"      element={<Indices />} />
                             <Route path="/relatorio"    element={<RelatorioAnual />} />
