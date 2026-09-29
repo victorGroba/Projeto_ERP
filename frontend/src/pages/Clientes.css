@@ -9,6 +9,23 @@
 .clientes-btn:disabled { opacity: .5; cursor: not-allowed; }
 .clientes-btn:focus-visible, .clientes-toolbar button:focus-visible, .clientes-group-row:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 2px; }
 
+.fiscal-import { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(340px, .9fr); gap: .85rem 1.25rem; align-items: center; padding: 1rem 1.1rem; background: #f8fbff; border: 1px solid #bfdbfe; border-left: 4px solid var(--primary); border-radius: var(--radius-md); box-shadow: var(--shadow-xs); }
+.fiscal-import-copy { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.fiscal-icon { width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; color: #1d4ed8; background: #dbeafe; }
+.fiscal-import h3 { margin: 0 0 .2rem; font-size: .9rem; }
+.fiscal-import p { color: var(--text-muted); font-size: .76rem; line-height: 1.45; }
+.fiscal-import-action { min-width: 0; display: grid; grid-template-columns: minmax(150px, 1fr) auto; grid-template-areas: "input button" "name button"; align-items: center; gap: .2rem .65rem; }
+.fiscal-import-action input { grid-area: input; width: 100%; color: var(--text-muted); font-size: .76rem; }
+.fiscal-import-action input::file-selector-button { margin-right: .55rem; padding: .46rem .65rem; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-main); background: var(--surface); font-weight: 600; cursor: pointer; }
+.fiscal-import-action > span { grid-area: name; overflow: hidden; color: var(--text-subtle); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.fiscal-import-action button { grid-area: button; min-height: 40px; padding: .6rem .8rem; display: inline-flex; align-items: center; gap: .4rem; border: 0; border-radius: var(--radius-sm); color: #fff; background: #1d4ed8; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.fiscal-import-action button:disabled { opacity: .48; cursor: not-allowed; }
+.fiscal-import-action button:focus-visible, .fiscal-import-action input:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 2px; }
+.fiscal-history { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; padding-top: .7rem; border-top: 1px solid #dbeafe; }
+.fiscal-month { display: inline-flex; align-items: center; gap: .32rem; padding: .32rem .48rem; border: 1px solid #bbf7d0; border-radius: 6px; color: #166534; background: #f0fdf4; font-size: .67rem; }
+.fiscal-month strong { text-transform: capitalize; }
+.fiscal-history-empty { color: var(--text-subtle); font-size: .72rem; }
+
 .clientes-toolbar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: .8rem; display: flex; gap: .75rem; align-items: center; box-shadow: var(--shadow-xs); }
 .clientes-search { min-width: 280px; flex: 1; display: flex; align-items: center; gap: .55rem; color: var(--text-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 .75rem; }
 .clientes-search:focus-within { border-color: #93c5fd; box-shadow: 0 0 0 3px #dbeafe; }
@@ -20,6 +37,7 @@
 .clientes-feedback { padding: .75rem 1rem; border-radius: var(--radius-sm); font-size: .8125rem; border: 1px solid; }
 .clientes-feedback.success { color: var(--success-hover); background: var(--success-light); border-color: var(--success-border); }
 .clientes-feedback.error { color: var(--danger-hover); background: var(--danger-light); border-color: var(--danger-border); }
+.clientes-feedback.warning { display: flex; align-items: center; gap: .45rem; color: var(--warning-hover); background: var(--warning-light); border-color: #fde68a; }
 
 .clientes-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .clientes-summary article { min-height: 108px; padding: 1.1rem 1.25rem; display: grid; grid-template-columns: 1fr auto; align-content: center; gap: .25rem; border-right: 1px solid var(--border); }
@@ -67,6 +85,10 @@
 }
 @media (max-width: 760px) {
   .clientes-intro, .clientes-toolbar { align-items: stretch; flex-direction: column; }
+  .fiscal-import { grid-template-columns: 1fr; }
+  .fiscal-import-action { grid-template-columns: 1fr; grid-template-areas: "input" "name" "button"; }
+  .fiscal-import-action button { justify-content: center; margin-top: .35rem; }
+  .fiscal-history { grid-column: 1; }
   .clientes-actions { width: 100%; }
   .clientes-btn { justify-content: center; flex: 1; }
   .clientes-periodo { flex-wrap: wrap; }

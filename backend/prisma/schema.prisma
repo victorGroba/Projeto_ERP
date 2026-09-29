@@ -85,6 +85,39 @@ model ClienteContaAzul {
   @@index([documento])
 }
 
+// Fechamento fiscal mensal importado do portal da prefeitura. Esta e a fonte
+// oficial do faturamento bruto de servicos; o financeiro do Conta Azul segue
+// sendo usado para recebido, aberto e inadimplencia.
+model ImportacaoFiscal {
+  id                  String              @id @default(uuid())
+  competencia         DateTime            @unique
+  arquivoNome         String
+  qtdNotas             Int
+  valorTotal           Float
+  qtdNaoConciliadas    Int                 @default(0)
+  createdAt            DateTime            @default(now())
+  notas                NotaFiscalServico[]
+}
+
+model NotaFiscalServico {
+  id                  String            @id @default(uuid())
+  importacaoId        String
+  importacao          ImportacaoFiscal  @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+  numero              String
+  prestadorDocumento  String
+  clienteDocumento    String
+  clienteNome         String
+  dataEmissao         DateTime
+  dataCompetencia     DateTime
+  valorBruto          Float
+  createdAt           DateTime          @default(now())
+
+  @@unique([prestadorDocumento, numero])
+  @@index([dataCompetencia])
+  @@index([clienteDocumento])
+  @@index([clienteNome])
+}
+
 model SaldoBancario {
   id          String   @id @default(uuid())
   instituicao String

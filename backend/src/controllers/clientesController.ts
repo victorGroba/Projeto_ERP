@@ -8,6 +8,9 @@ const prisma = new PrismaClient();
 const normalize = (value: string | null | undefined) =>
     (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
+const digits = (value: string | null | undefined) => (value || '').replace(/\D/g, '');
+const monthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+
 function parseDate(value: unknown, endOfDay = false): Date | null {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
     return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}-03:00`);
@@ -80,7 +83,7 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
     }
 
     try {
-        const [clientes, titulos] = await Promise.all([
+        const [clientes, titulos, notasFiscais, importacoesFiscais] = await Promise.all([
             prisma.clienteContaAzul.findMany({ orderBy: [{ codigo: 'asc' }, { nome: 'asc' }] }),
             prisma.contaReceber.findMany({
                 where: {
@@ -101,13 +104,29 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                     valorPago: true,
                     valorAberto: true,
                     status: true,
+                    dataCompetencia: true,
+                    dataVencimento: true,
                 },
             }),
+            prisma.notaFiscalServico.findMany({
+                where: { dataCompetencia: { gte: de, lte: ate } },
+                select: {
+                    numero: true,
+                    clienteDocumento: true,
+                    clienteNome: true,
+                    valorBruto: true,
+                    dataCompetencia: true,
+                },
+            }),
+            prisma.importacaoFiscal.findMany({ orderBy: { competencia: 'desc' } }),
         ]);
 
         const porId = new Map(clientes.map(c => [c.id, c]));
+        const porDocumento = new Map<string, typeof clientes[number]>();
         const porNome = new Map<string, typeof clientes[number]>();
         clientes.forEach(c => {
+            const documento = digits(c.documento);
+            if (documento) porDocumento.set(documento, c);
             [c.nome, c.nomeEmpresa].filter(Boolean).forEach(nome => porNome.set(normalize(nome), c));
         });
 
@@ -123,6 +142,8 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             faturamento: 0, recebido: 0, aberto: 0, titulos: 0,
         }));
 
+        const mesesImportados = new Set(importacoesFiscais.map(item => monthKey(item.competencia)));
+
         titulos.forEach(titulo => {
             const cadastro = (titulo.clienteId && porId.get(titulo.clienteId)) || porNome.get(normalize(titulo.cliente));
             const key = cadastro?.id || `nao-vinculado:${normalize(titulo.cliente)}`;
@@ -132,15 +153,32 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                 faturamento: 0, recebido: 0, aberto: 0, titulos: 0,
             });
             const linha = linhas.get(key)!;
-            // Registros antigos/CSV podem nao ter os campos separados; nesses
-            // casos preservamos o comportamento anterior ate a proxima carga.
-            const total = titulo.valorTotal ?? titulo.valor;
             const recebido = titulo.valorPago ?? (titulo.status === STATUS_RECEITA.PAGO ? titulo.valor : 0);
             const aberto = titulo.valorAberto ?? (titulo.status === STATUS_RECEITA.PAGO ? 0 : titulo.valor);
-            linha.faturamento += total;
-            linha.titulos++;
             linha.recebido += recebido;
             linha.aberto += aberto;
+
+            // Enquanto um mês ainda não recebeu o CSV fiscal, mantém o valor da
+            // API como fallback. Assim que o fechamento é importado, apenas as
+            // NFS-e da prefeitura compõem o faturamento bruto daquele mês.
+            const competenciaTitulo = titulo.dataCompetencia ?? titulo.dataVencimento;
+            if (!mesesImportados.has(monthKey(competenciaTitulo))) {
+                linha.faturamento += titulo.valorTotal ?? titulo.valor;
+                linha.titulos++;
+            }
+        });
+
+        notasFiscais.forEach(nota => {
+            const cadastro = porDocumento.get(nota.clienteDocumento) || porNome.get(normalize(nota.clienteNome));
+            const key = cadastro?.id || `nao-vinculado-fiscal:${nota.clienteDocumento || normalize(nota.clienteNome)}`;
+            if (!linhas.has(key)) linhas.set(key, {
+                id: key, codigo: null, nome: nota.clienteNome, nomeEmpresa: null,
+                documento: nota.clienteDocumento || null, email: null, cidade: null, uf: null, ativo: true,
+                faturamento: 0, recebido: 0, aberto: 0, titulos: 0,
+            });
+            const linha = linhas.get(key)!;
+            linha.faturamento += nota.valorBruto;
+            linha.titulos++;
         });
 
         const gruposMap = new Map<string, { codigo: string | null; clientes: LinhaCliente[]; faturamento: number; recebido: number; aberto: number; titulos: number }>();
@@ -165,7 +203,17 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
 
         res.json({
             periodo: { de: req.query.de, ate: req.query.ate },
-            atualizadoEm: clientes.reduce<Date | null>((latest, c) => !latest || c.sincronizadoEm > latest ? c.sincronizadoEm : latest, null),
+            atualizadoEm: [
+                clientes.reduce<Date | null>((latest, c) => !latest || c.sincronizadoEm > latest ? c.sincronizadoEm : latest, null),
+                importacoesFiscais[0]?.createdAt || null,
+            ].reduce<Date | null>((latest, date) => date && (!latest || date > latest) ? date : latest, null),
+            fiscal: {
+                mesesImportados: [...mesesImportados].sort(),
+                notasNoPeriodo: notasFiscais.length,
+                naoConciliadasNoPeriodo: notasFiscais.filter(nota =>
+                    !porDocumento.has(nota.clienteDocumento) && !porNome.has(normalize(nota.clienteNome))).length,
+                ultimaImportacao: importacoesFiscais[0]?.createdAt || null,
+            },
             resumo: {
                 cadastros: clientes.length,
                 grupos: grupos.filter(g => g.codigo).length,

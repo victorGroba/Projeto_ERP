@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, LineChart, Line 
 } from 'recharts';
-import { Beaker, FlaskConical, TestTube2, DollarSign, Calculator } from 'lucide-react';
-import { mockCustosEnsaio, formatCurrency, getCustoTotal, CustoEnsaio } from '../data/custosLaboratorioMock';
+import { BarChart3, Beaker, FlaskConical, TestTube2, DollarSign, Calculator } from 'lucide-react';
+import { mockCustosEnsaio, formatCurrency, getCustoTotal } from '../data/custosLaboratorioMock';
 import '../index.css';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -108,7 +108,7 @@ export default function CustosLaboratorio() {
         {/* Gráfico 1: Macro - Setores */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-            <PieChart size={20} color="var(--text-muted)"/>
+            <Beaker size={20} color="var(--text-muted)"/>
             <h2>Distribuição de Custos por Setor</h2>
           </div>
           <div style={{ height: 300 }}>
@@ -123,11 +123,11 @@ export default function CustosLaboratorio() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {dadosSetor.map((entry, index) => (
+                  {dadosSetor.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(val: number) => formatCurrency(val)} />
+                <Tooltip formatter={(val: number | undefined) => formatCurrency(val ?? 0)} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -137,7 +137,7 @@ export default function CustosLaboratorio() {
         {/* Gráfico 2: Micro - Top 5 Ensaios */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-            <BarChart size={20} color="var(--text-muted)"/>
+            <BarChart3 size={20} color="var(--text-muted)"/>
             <h2>Top 5 Análises mais Custosas (Micro-custeio)</h2>
           </div>
           <div style={{ height: 300 }}>
@@ -146,7 +146,7 @@ export default function CustosLaboratorio() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} />
-                <Tooltip formatter={(val: number) => formatCurrency(val)} />
+                <Tooltip formatter={(val: number | undefined) => formatCurrency(val ?? 0)} />
                 <Legend />
                 <Bar dataKey="custoReagente" name="Reagente (R$)" stackId="a" fill="#3b82f6" />
                 <Bar dataKey="custoTempo" name="Tempo Analista (R$)" stackId="a" fill="#10b981" />
@@ -209,7 +209,7 @@ export default function CustosLaboratorio() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="mes" />
                 <YAxis tickFormatter={(val) => `R$ ${val/1000}k`} />
-                <Tooltip formatter={(val: number) => formatCurrency(val)} />
+                <Tooltip formatter={(val: number | undefined) => formatCurrency(val ?? 0)} />
                 <Legend />
                 <Line type="monotone" dataKey="CustoBase" name="Projeção Atual (Sem Alterações)" stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={2} />
                 <Line type="monotone" dataKey="CustoPrevisto" name="Custo Simulado (Predição)" stroke="#2563eb" strokeWidth={3} dot={{ r: 6 }} activeDot={{ r: 8 }} />

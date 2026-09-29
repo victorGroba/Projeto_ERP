@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Building2, ChevronDown, ChevronRight, Download, Loader2, RefreshCw, Search, UsersRound, WalletCards } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Download, FileSpreadsheet, Loader2, RefreshCw, Search, UploadCloud, UsersRound, WalletCards } from 'lucide-react';
 import './Clientes.css';
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -18,8 +18,13 @@ interface Cliente {
 interface Grupo { codigo: string | null; clientes: Cliente[]; faturamento: number; recebido: number; aberto: number; titulos: number; }
 interface VisaoClientes {
     atualizadoEm: string | null;
+    fiscal: { mesesImportados: string[]; notasNoPeriodo: number; naoConciliadasNoPeriodo: number; ultimaImportacao: string | null };
     resumo: { cadastros: number; grupos: number; faturamento: number; recebido: number; aberto: number; titulos: number };
     grupos: Grupo[];
+}
+interface ImportacaoFiscal {
+    id: string; competencia: string; arquivoNome: string; qtdNotas: number; valorTotal: number;
+    qtdNaoConciliadas: number; createdAt: string;
 }
 
 const csvCell = (value: unknown) => {
@@ -40,6 +45,10 @@ export default function Clientes() {
     const [erro, setErro] = useState<string | null>(null);
     const [mensagem, setMensagem] = useState<string | null>(null);
     const [abertos, setAbertos] = useState<Set<string>>(new Set());
+    const [arquivoFiscal, setArquivoFiscal] = useState<File | null>(null);
+    const [importandoFiscal, setImportandoFiscal] = useState(false);
+    const [importacoesFiscais, setImportacoesFiscais] = useState<ImportacaoFiscal[]>([]);
+    const fiscalInput = useRef<HTMLInputElement>(null);
 
     const carregar = async (range = periodo, termo = busca) => {
         setLoading(true);
@@ -56,6 +65,15 @@ export default function Clientes() {
         const timer = window.setTimeout(() => { void carregar(periodo, busca); }, 350);
         return () => window.clearTimeout(timer);
     }, [periodo, busca]);
+
+    const carregarImportacoesFiscais = async () => {
+        try {
+            const response = await axios.get('/api/clientes/faturamento-fiscal');
+            setImportacoesFiscais(response.data.importacoes || []);
+        } catch { /* o carregamento principal continua disponível */ }
+    };
+
+    useEffect(() => { void carregarImportacoesFiscais(); }, []);
 
     useEffect(() => {
         let active = true;
@@ -90,6 +108,23 @@ export default function Clientes() {
         } finally { setSyncing(false); }
     };
 
+    const importarFiscal = async () => {
+        if (!arquivoFiscal) return;
+        setImportandoFiscal(true); setErro(null); setMensagem(null);
+        try {
+            const form = new FormData();
+            form.append('file', arquivoFiscal);
+            const response = await axios.post('/api/clientes/faturamento-fiscal', form);
+            const aviso = response.data.avisoTotal ? ` ${response.data.avisoTotal}` : '';
+            setMensagem(`${response.data.message}${aviso}`);
+            setArquivoFiscal(null);
+            if (fiscalInput.current) fiscalInput.current.value = '';
+            await Promise.all([carregar(periodo, busca), carregarImportacoesFiscais()]);
+        } catch (error: any) {
+            setErro(error.response?.data?.message || 'Não foi possível importar o CSV da prefeitura.');
+        } finally { setImportandoFiscal(false); }
+    };
+
     const toggle = (key: string) => setAbertos(current => {
         const next = new Set(current);
         if (next.has(key)) next.delete(key); else next.add(key);
@@ -113,7 +148,7 @@ export default function Clientes() {
 
     return <div className="clientes-page fade-in">
         <section className="clientes-intro">
-            <div><h2>Faturamento bruto por grupo</h2><p>Considera o valor total dos títulos emitidos no período de competência, independentemente de estarem pagos ou em aberto.</p></div>
+            <div><h2>Faturamento bruto por grupo</h2><p>O fechamento fiscal vem das NFS-e da prefeitura; recebido e em aberto continuam sendo atualizados pela API Conta Azul.</p></div>
             <div className="clientes-actions">
                 <button className="clientes-btn secondary" onClick={exportar} disabled={!clientesVisiveis.length}><Download size={16} /> Exportar CSV</button>
                 <button className="clientes-btn primary" onClick={sincronizar} disabled={syncing}>
@@ -122,6 +157,33 @@ export default function Clientes() {
                         ? `Sincronizando${syncProgress?.total ? ` ${syncProgress.processados}/${syncProgress.total}` : '…'}`
                         : 'Sincronizar cadastros'}
                 </button>
+            </div>
+        </section>
+
+        <section className="fiscal-import" aria-labelledby="fiscal-import-title">
+            <div className="fiscal-import-copy">
+                <span className="fiscal-icon"><FileSpreadsheet size={21} /></span>
+                <div>
+                    <h3 id="fiscal-import-title">Fechamento fiscal mensal</h3>
+                    <p>Anexe o CSV da prefeitura. Se o mês já foi importado, o arquivo anterior será substituído.</p>
+                </div>
+            </div>
+            <div className="fiscal-import-action">
+                <input ref={fiscalInput} type="file" accept=".csv,text/csv" onChange={event => setArquivoFiscal(event.target.files?.[0] || null)} />
+                <span title={arquivoFiscal?.name}>{arquivoFiscal?.name || 'Nenhum arquivo selecionado'}</span>
+                <button onClick={importarFiscal} disabled={!arquivoFiscal || importandoFiscal}>
+                    {importandoFiscal ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                    {importandoFiscal ? 'Conferindo…' : 'Importar CSV'}
+                </button>
+            </div>
+            <div className="fiscal-history">
+                {importacoesFiscais.length === 0
+                    ? <span className="fiscal-history-empty">Ainda não há fechamento fiscal importado.</span>
+                    : importacoesFiscais.slice(0, 6).map(item => <span className="fiscal-month" key={item.id}>
+                        <CheckCircle2 size={14} />
+                        <strong>{new Date(item.competencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</strong>
+                        {item.qtdNotas} notas · {fmt(item.valorTotal)}
+                    </span>)}
             </div>
         </section>
 
@@ -141,11 +203,12 @@ export default function Clientes() {
             <section className="clientes-summary">
                 <article><UsersRound size={18} /><span>Cadastros</span><strong>{fmtNumber(dados.resumo.cadastros)}</strong></article>
                 <article><Building2 size={18} /><span>Grupos com código</span><strong>{fmtNumber(dados.resumo.grupos)}</strong></article>
-                <article><span>Títulos emitidos</span><strong>{fmtNumber(dados.resumo.titulos)}</strong><small>pela data de competência</small></article>
+                <article><span>Notas/títulos</span><strong>{fmtNumber(dados.resumo.titulos)}</strong><small>{dados.fiscal.notasNoPeriodo ? 'NFS-e por competência fiscal' : 'API como fonte provisória'}</small></article>
                 <article className="money"><WalletCards size={18} /><span>Faturamento bruto</span><strong>{fmt(dados.resumo.faturamento)}</strong></article>
             </section>
+            {dados.fiscal.naoConciliadasNoPeriodo > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} /> {dados.fiscal.naoConciliadasNoPeriodo} nota(s) não foram vinculadas a um cadastro do Conta Azul pelo CNPJ. Elas continuam incluídas no faturamento.</div>}
             <section className="clientes-ledger">
-                <header><div><h3>Faturamento consolidado</h3><p>{dados.grupos.length} agrupamentos · emissão/competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.atualizadoEm ? `Cadastros atualizados em ${new Date(dados.atualizadoEm).toLocaleString('pt-BR')}` : 'Cadastros ainda não sincronizados'}</span></header>
+                <header><div><h3>Faturamento consolidado</h3><p>{dados.grupos.length} agrupamentos · competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.fiscal.notasNoPeriodo ? `${dados.fiscal.notasNoPeriodo} NFS-e da prefeitura no período` : 'Sem CSV fiscal no período · usando API'}</span></header>
                 {loading ? <div className="clientes-empty"><Loader2 size={18} className="animate-spin" /> Atualizando visão…</div>
                     : dados.grupos.length === 0 ? <div className="clientes-empty">Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.</div>
                     : dados.grupos.map((grupo, index) => {
@@ -155,7 +218,7 @@ export default function Clientes() {
                             <button className="clientes-group-row gross-only" onClick={() => toggle(key)} aria-expanded={aberto}>
                                 <span className="clientes-chevron">{aberto ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</span>
                                 <span className={`clientes-code${grupo.codigo ? '' : ' missing'}`}>{grupo.codigo || 'Sem código'}</span>
-                                <span className="clientes-group-name"><strong>{grupo.clientes.length === 1 ? grupo.clientes[0].nomeEmpresa || grupo.clientes[0].nome : `${grupo.clientes.length} clientes vinculados`}</strong><small>{grupo.titulos} título(s)</small></span>
+                                <span className="clientes-group-name"><strong>{grupo.clientes.length === 1 ? grupo.clientes[0].nomeEmpresa || grupo.clientes[0].nome : `${grupo.clientes.length} clientes vinculados`}</strong><small>{grupo.titulos} nota(s)/título(s)</small></span>
                                 <span><small>Faturamento bruto</small><strong>{fmt(grupo.faturamento)}</strong></span>
                             </button>
                             {aberto && <div className="clientes-detail-wrap"><table>
