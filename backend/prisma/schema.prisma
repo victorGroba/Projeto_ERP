@@ -47,6 +47,9 @@ model ContaReceber {
   dataCompetencia DateTime?
   dataVencimento  DateTime
   valor           Float
+  valorTotal      Float?   // Valor original do titulo (faturamento bruto)
+  valorPago       Float?   // Parcela ja recebida, inclusive pagamentos parciais
+  valorAberto     Float?   // Saldo ainda nao recebido
   status          String   // Vencido, A Vencer, Recebido
   descricao       String?
   numeroNotaFiscal String?

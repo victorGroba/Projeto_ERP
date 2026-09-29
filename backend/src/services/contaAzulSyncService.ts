@@ -283,6 +283,10 @@ async function syncReceitas(api: ContaAzulAPI, inicio: string, fim: string, repl
     const records = items
         .map((item: any) => {
             const dataVenc = parseApiDate(item.data_vencimento);
+            const statusApi = (item.status_traduzido || '').toUpperCase();
+            const valorTotal = Math.abs(item.total ?? item.valor ?? 0);
+            const valorPago = Math.abs(item.pago ?? (statusApi === 'RECEBIDO' ? valorTotal : 0));
+            const valorAberto = Math.abs(item.nao_pago ?? Math.max(valorTotal - valorPago, 0));
             return {
                 clienteId: item.cliente?.id || item.cliente?.uuid || item.id_cliente || null,
                 cliente: item.cliente?.nome || 'Sem cliente',
@@ -291,16 +295,19 @@ async function syncReceitas(api: ContaAzulAPI, inicio: string, fim: string, repl
                 dataCompetencia: item.data_competencia ? parseApiDate(item.data_competencia) : null,
                 dataVencimento: dataVenc,
                 valor: Math.abs(
-                    item.status_traduzido === 'RECEBIDO'
+                    statusApi === 'RECEBIDO'
                         ? (item.total ?? 0)
                         : (item.nao_pago ?? item.total ?? 0)
                 ),
+                valorTotal,
+                valorPago,
+                valorAberto,
                 status: mapStatus(item.status_traduzido || '', dataVenc),
                 descricao: item.descricao || '',
                 numeroNotaFiscal: item.numero_nota_fiscal || '',
             };
         })
-        .filter((r: any) => r.valor > 0);
+        .filter((r: any) => r.valorTotal > 0);
 
     if (replace) {
         await prisma.contaReceber.deleteMany();

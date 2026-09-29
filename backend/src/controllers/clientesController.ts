@@ -84,7 +84,15 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             prisma.clienteContaAzul.findMany({ orderBy: [{ codigo: 'asc' }, { nome: 'asc' }] }),
             prisma.contaReceber.findMany({
                 where: { dataVencimento: { gte: de, lte: ate } },
-                select: { clienteId: true, cliente: true, valor: true, status: true },
+                select: {
+                    clienteId: true,
+                    cliente: true,
+                    valor: true,
+                    valorTotal: true,
+                    valorPago: true,
+                    valorAberto: true,
+                    status: true,
+                },
             }),
         ]);
 
@@ -115,10 +123,15 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                 faturamento: 0, recebido: 0, aberto: 0, titulos: 0,
             });
             const linha = linhas.get(key)!;
-            linha.faturamento += titulo.valor;
+            // Registros antigos/CSV podem nao ter os campos separados; nesses
+            // casos preservamos o comportamento anterior ate a proxima carga.
+            const total = titulo.valorTotal ?? titulo.valor;
+            const recebido = titulo.valorPago ?? (titulo.status === STATUS_RECEITA.PAGO ? titulo.valor : 0);
+            const aberto = titulo.valorAberto ?? (titulo.status === STATUS_RECEITA.PAGO ? 0 : titulo.valor);
+            linha.faturamento += total;
             linha.titulos++;
-            if (titulo.status === STATUS_RECEITA.PAGO) linha.recebido += titulo.valor;
-            else linha.aberto += titulo.valor;
+            linha.recebido += recebido;
+            linha.aberto += aberto;
         });
 
         const gruposMap = new Map<string, { codigo: string | null; clientes: LinhaCliente[]; faturamento: number; recebido: number; aberto: number; titulos: number }>();

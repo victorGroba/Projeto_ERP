@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
 import { PrismaClient } from '@prisma/client';
+import { STATUS_RECEITA } from '../utils/statusReceita';
 
 const prisma = new PrismaClient();
 
@@ -308,6 +309,9 @@ export class ImportacaoService {
                         dataCompetencia: dataComp,
                         dataVencimento: dataVenc,
                         valor: Math.abs(valor),
+                        valorTotal: Math.abs(valor),
+                        valorPago: status === STATUS_RECEITA.PAGO ? Math.abs(valor) : 0,
+                        valorAberto: status === STATUS_RECEITA.PAGO ? 0 : Math.abs(valor),
                         status: status,
                         descricao: desc,
                         numeroNotaFiscal: nf
