@@ -41,7 +41,7 @@ function mapPessoa(item: any) {
 }
 
 /** Baixa o cadastro completo de clientes e substitui o espelho local atomicamente. */
-export async function sincronizarClientes(): Promise<{ quantidade: number }> {
+export async function sincronizarClientes(): Promise<{ quantidade: number; comCodigo: number }> {
     const api = await getAPI();
     await api.tryRefreshToken();
 
@@ -67,11 +67,27 @@ export async function sincronizarClientes(): Promise<{ quantidade: number }> {
         pagina++;
     }
 
-    const registros = pessoas.map(mapPessoa).filter((p): p is NonNullable<ReturnType<typeof mapPessoa>> => Boolean(p));
+    // A listagem de Pessoas pode devolver apenas o resumo, sem o campo `codigo`.
+    // Nesses casos buscamos o detalhe, onde a API documenta e retorna esse campo.
+    // A pausa mantém a rotina abaixo do limite de 10 requisições por segundo.
+    const pessoasCompletas: any[] = [];
+    for (const pessoa of pessoas) {
+        const resumo = mapPessoa(pessoa);
+        if (!resumo || resumo.codigo) {
+            pessoasCompletas.push(pessoa);
+            continue;
+        }
+
+        if (pessoasCompletas.length > 0) await sleep(150);
+        const detalhe = await api.getPessoaById(resumo.id);
+        pessoasCompletas.push({ ...pessoa, ...detalhe, id: detalhe?.id || resumo.id });
+    }
+
+    const registros = pessoasCompletas.map(mapPessoa).filter((p): p is NonNullable<ReturnType<typeof mapPessoa>> => Boolean(p));
     await prisma.$transaction([
         prisma.clienteContaAzul.deleteMany(),
         prisma.clienteContaAzul.createMany({ data: registros }),
     ]);
     await persistTokens(api);
-    return { quantidade: registros.length };
+    return { quantidade: registros.length, comCodigo: registros.filter(registro => Boolean(registro.codigo)).length };
 }

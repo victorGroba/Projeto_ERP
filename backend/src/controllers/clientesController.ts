@@ -16,7 +16,11 @@ function parseDate(value: unknown, endOfDay = false): Date | null {
 export async function syncClientes(_req: Request, res: Response): Promise<void> {
     try {
         const result = await sincronizarClientes();
-        res.json({ success: true, message: `${result.quantidade} cadastros sincronizados.`, ...result });
+        res.json({
+            success: true,
+            message: `${result.quantidade} cadastros sincronizados; ${result.comCodigo} com código.`,
+            ...result,
+        });
     } catch (error: any) {
         console.error('[Clientes] Falha ao sincronizar:', error.message);
         res.status(500).json({ success: false, message: error.response?.data?.message || error.message || 'Falha ao sincronizar clientes.' });
