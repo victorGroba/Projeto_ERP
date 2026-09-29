@@ -9,6 +9,26 @@ const normalize = (value: string | null | undefined) =>
     (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
 const digits = (value: string | null | undefined) => (value || '').replace(/\D/g, '');
+
+// Sucessoes/alteracoes cadastrais em que o CNPJ antigo precisa permanecer nas
+// notas fiscais, mas os valores devem acompanhar o grupo economico atual.
+const ALIASES_CLIENTES = [
+    {
+        documentosOrigem: new Set(['29435005005279']),
+        nomesOrigem: [/(^|\s)esho(\s|$)/],
+        codigoDestino: 'AMICO SAUDE',
+    },
+];
+
+function codigoDestinoAlias(documento: string | null | undefined, nome: string | null | undefined): string | null {
+    const documentoNormalizado = digits(documento);
+    const nomeNormalizado = normalize(nome);
+    const alias = ALIASES_CLIENTES.find(regra =>
+        regra.documentosOrigem.has(documentoNormalizado)
+        || regra.nomesOrigem.some(padrao => padrao.test(nomeNormalizado)));
+    return alias?.codigoDestino || null;
+}
+
 const monthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 function monthKeysBetween(start: Date, end: Date): string[] {
     const keys: string[] = [];
@@ -132,11 +152,23 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
         const porId = new Map(clientes.map(c => [c.id, c]));
         const porDocumento = new Map<string, typeof clientes[number]>();
         const porNome = new Map<string, typeof clientes[number]>();
+        const porCodigo = new Map<string, typeof clientes[number]>();
         clientes.forEach(c => {
             const documento = digits(c.documento);
             if (documento) porDocumento.set(documento, c);
             [c.nome, c.nomeEmpresa].filter(Boolean).forEach(nome => porNome.set(normalize(nome), c));
+            if (c.codigo) porCodigo.set(normalize(c.codigo), c);
         });
+
+        const cadastroPorAlias = (documento: string | null | undefined, nome: string | null | undefined) => {
+            const codigoDestino = codigoDestinoAlias(documento, nome);
+            return codigoDestino ? porCodigo.get(normalize(codigoDestino)) : undefined;
+        };
+
+        const cadastroNotaFiscal = (documento: string, nome: string) =>
+            cadastroPorAlias(documento, nome)
+            || porDocumento.get(documento)
+            || porNome.get(normalize(nome));
 
         type LinhaCliente = {
             id: string; codigo: string | null; nome: string; nomeEmpresa: string | null;
@@ -153,7 +185,9 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
         const mesesImportados = new Set(importacoesFiscais.map(item => monthKey(item.competencia)));
 
         titulos.forEach(titulo => {
-            const cadastro = (titulo.clienteId && porId.get(titulo.clienteId)) || porNome.get(normalize(titulo.cliente));
+            const cadastroOriginal = (titulo.clienteId && porId.get(titulo.clienteId)) || porNome.get(normalize(titulo.cliente));
+            const cadastro = cadastroPorAlias(cadastroOriginal?.documento, cadastroOriginal?.nome || titulo.cliente)
+                || cadastroOriginal;
             const key = cadastro?.id || `nao-vinculado:${normalize(titulo.cliente)}`;
             if (!linhas.has(key)) linhas.set(key, {
                 id: key, codigo: null, nome: titulo.cliente, nomeEmpresa: null,
@@ -169,7 +203,7 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
         });
 
         notasFiscais.forEach(nota => {
-            const cadastro = porDocumento.get(nota.clienteDocumento) || porNome.get(normalize(nota.clienteNome));
+            const cadastro = cadastroNotaFiscal(nota.clienteDocumento, nota.clienteNome);
             const key = cadastro?.id || `nao-vinculado-fiscal:${nota.clienteDocumento || normalize(nota.clienteNome)}`;
             if (!linhas.has(key)) linhas.set(key, {
                 id: key, codigo: null, nome: nota.clienteNome, nomeEmpresa: null,
@@ -217,7 +251,7 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                 mesesAusentes,
                 notasNoPeriodo: notasFiscais.length,
                 naoConciliadasNoPeriodo: notasFiscais.filter(nota =>
-                    !porDocumento.has(nota.clienteDocumento) && !porNome.has(normalize(nota.clienteNome))).length,
+                    !cadastroNotaFiscal(nota.clienteDocumento, nota.clienteNome)).length,
                 ultimaImportacao: importacoesFiscais[0]?.createdAt || null,
             },
             resumo: {
