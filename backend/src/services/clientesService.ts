@@ -41,7 +41,9 @@ function mapPessoa(item: any) {
 }
 
 /** Baixa o cadastro completo de clientes e substitui o espelho local atomicamente. */
-export async function sincronizarClientes(): Promise<{ quantidade: number; comCodigo: number }> {
+export async function sincronizarClientes(
+    onProgress?: (processados: number, total: number) => void,
+): Promise<{ quantidade: number; comCodigo: number }> {
     const api = await getAPI();
     await api.tryRefreshToken();
 
@@ -71,16 +73,19 @@ export async function sincronizarClientes(): Promise<{ quantidade: number; comCo
     // Nesses casos buscamos o detalhe, onde a API documenta e retorna esse campo.
     // A pausa mantém a rotina abaixo do limite de 10 requisições por segundo.
     const pessoasCompletas: any[] = [];
+    onProgress?.(0, pessoas.length);
     for (const pessoa of pessoas) {
         const resumo = mapPessoa(pessoa);
         if (!resumo || resumo.codigo) {
             pessoasCompletas.push(pessoa);
+            onProgress?.(pessoasCompletas.length, pessoas.length);
             continue;
         }
 
         if (pessoasCompletas.length > 0) await sleep(150);
         const detalhe = await api.getPessoaById(resumo.id);
         pessoasCompletas.push({ ...pessoa, ...detalhe, id: detalhe?.id || resumo.id });
+        onProgress?.(pessoasCompletas.length, pessoas.length);
     }
 
     const registros = pessoasCompletas.map(mapPessoa).filter((p): p is NonNullable<ReturnType<typeof mapPessoa>> => Boolean(p));

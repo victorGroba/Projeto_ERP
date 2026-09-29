@@ -36,6 +36,7 @@ export default function Clientes() {
     const [dados, setDados] = useState<VisaoClientes | null>(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState<{ processados: number; total: number } | null>(null);
     const [erro, setErro] = useState<string | null>(null);
     const [mensagem, setMensagem] = useState<string | null>(null);
     const [abertos, setAbertos] = useState<Set<string>>(new Set());
@@ -56,12 +57,34 @@ export default function Clientes() {
         return () => window.clearTimeout(timer);
     }, [periodo, busca]);
 
+    useEffect(() => {
+        let active = true;
+        const consultar = async () => {
+            try {
+                const response = await axios.get('/api/clientes/sync/status');
+                if (!active) return;
+                const status = response.data;
+                setSyncing(Boolean(status.emAndamento));
+                setSyncProgress(status.emAndamento ? { processados: status.processados || 0, total: status.total || 0 } : null);
+                if (!status.emAndamento && status.finalizadoEm) {
+                    if (status.error) setErro(status.error);
+                    else if (status.message) setMensagem(status.message);
+                    await carregar();
+                    return;
+                }
+            } catch { /* o carregamento principal exibe erros de conexão */ }
+            if (active) window.setTimeout(consultar, 2000);
+        };
+        void consultar();
+        return () => { active = false; };
+    }, [syncing]);
+
     const sincronizar = async () => {
         setSyncing(true); setErro(null); setMensagem(null);
         try {
             const response = await axios.post('/api/clientes/sync');
             setMensagem(response.data.message);
-            await carregar();
+            setSyncProgress({ processados: response.data.processados || 0, total: response.data.total || 0 });
         } catch (error: any) {
             setErro(error.response?.data?.message || 'A sincronização dos cadastros falhou.');
         } finally { setSyncing(false); }
@@ -95,7 +118,10 @@ export default function Clientes() {
             <div className="clientes-actions">
                 <button className="clientes-btn secondary" onClick={exportar} disabled={!clientesVisiveis.length}><Download size={16} /> Exportar CSV</button>
                 <button className="clientes-btn primary" onClick={sincronizar} disabled={syncing}>
-                    {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{syncing ? 'Sincronizando…' : 'Sincronizar cadastros'}
+                    {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                    {syncing
+                        ? `Sincronizando${syncProgress?.total ? ` ${syncProgress.processados}/${syncProgress.total}` : '…'}`
+                        : 'Sincronizar cadastros'}
                 </button>
             </div>
         </section>

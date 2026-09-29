@@ -13,18 +13,62 @@ function parseDate(value: unknown, endOfDay = false): Date | null {
     return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}-03:00`);
 }
 
+interface ClientesSyncStatus {
+    emAndamento: boolean;
+    iniciadoEm?: string;
+    finalizadoEm?: string;
+    processados: number;
+    total: number;
+    message?: string;
+    error?: string;
+}
+
+let clientesSyncStatus: ClientesSyncStatus = { emAndamento: false, processados: 0, total: 0 };
+
+export function getClientesSyncStatus(_req: Request, res: Response): void {
+    res.json(clientesSyncStatus);
+}
+
 export async function syncClientes(_req: Request, res: Response): Promise<void> {
-    try {
-        const result = await sincronizarClientes();
-        res.json({
-            success: true,
-            message: `${result.quantidade} cadastros sincronizados; ${result.comCodigo} com código.`,
-            ...result,
-        });
-    } catch (error: any) {
-        console.error('[Clientes] Falha ao sincronizar:', error.message);
-        res.status(500).json({ success: false, message: error.response?.data?.message || error.message || 'Falha ao sincronizar clientes.' });
+    if (clientesSyncStatus.emAndamento) {
+        res.status(202).json({ success: true, message: 'A sincronização de clientes já está em andamento.', ...clientesSyncStatus });
+        return;
     }
+
+    clientesSyncStatus = {
+        emAndamento: true,
+        iniciadoEm: new Date().toISOString(),
+        processados: 0,
+        total: 0,
+    };
+
+    // Responde imediatamente para não estourar o timeout do proxy enquanto os
+    // detalhes de cada cliente são consultados em segundo plano.
+    res.status(202).json({ success: true, message: 'Sincronização de clientes iniciada.', ...clientesSyncStatus });
+
+    void sincronizarClientes((processados, total) => {
+        clientesSyncStatus = { ...clientesSyncStatus, processados, total };
+    }).then(result => {
+        const message = `${result.quantidade} cadastros sincronizados; ${result.comCodigo} com código.`;
+        clientesSyncStatus = {
+            ...clientesSyncStatus,
+            emAndamento: false,
+            finalizadoEm: new Date().toISOString(),
+            processados: result.quantidade,
+            total: result.quantidade,
+            message,
+        };
+        console.log(`[Clientes] ✅ ${message}`);
+    }).catch((error: any) => {
+        const message = error.response?.data?.message || error.message || 'Falha ao sincronizar clientes.';
+        console.error('[Clientes] Falha ao sincronizar:', message);
+        clientesSyncStatus = {
+            ...clientesSyncStatus,
+            emAndamento: false,
+            finalizadoEm: new Date().toISOString(),
+            error: message,
+        };
+    });
 }
 
 export async function getVisaoClientes(req: Request, res: Response): Promise<void> {
