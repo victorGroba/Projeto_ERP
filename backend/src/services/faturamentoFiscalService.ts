@@ -30,7 +30,6 @@ function parseMunicipalDate(value: unknown): Date | null {
     return Number.isNaN(date.getTime()) ? null : date;
 }
 
-const monthStart = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 12));
 const monthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 
 function readRows(buffer: Buffer): Promise<Record<string, string>[]> {
@@ -49,11 +48,14 @@ function readRows(buffer: Buffer): Promise<Record<string, string>[]> {
 }
 
 export interface ResultadoImportacaoFiscal {
-    competencia: string;
+    competenciaInicio: string;
+    competenciaFim: string;
+    competencias: string[];
+    qtdMeses: number;
     qtdNotas: number;
     valorTotal: number;
     qtdNaoConciliadas: number;
-    substituiu: boolean;
+    mesesSubstituidos: number;
     avisoTotal?: string;
 }
 
@@ -83,12 +85,6 @@ export async function importarFaturamentoFiscal(buffer: Buffer, arquivoNome: str
         throw new Error('Arquivo rejeitado: nenhuma NFS-e ativa foi encontrada no layout da prefeitura.');
     }
 
-    const competencias = new Set(notas.map(nota => monthKey(nota.dataCompetencia)));
-    if (competencias.size !== 1) {
-        throw new Error(`Arquivo rejeitado: foram encontradas notas de mais de uma competência (${[...competencias].join(', ')}). Importe um mês por arquivo.`);
-    }
-
-    const competencia = monthStart(notas[0].dataCompetencia);
     const valorTotal = Math.round(notas.reduce((sum, nota) => sum + nota.valorBruto, 0) * 100) / 100;
     const totalizador = rows.find(row => String(row.tipo_de_registro || '').trim().toLowerCase() === 'total');
     const valorTotalizador = totalizador ? parseCurrency(totalizador.valor_dos_servicos) : 0;
@@ -99,21 +95,40 @@ export async function importarFaturamentoFiscal(buffer: Buffer, arquivoNome: str
     const clientes = await prisma.clienteContaAzul.findMany({ select: { documento: true } });
     const documentosCadastrados = new Set(clientes.map(cliente => digits(cliente.documento)).filter(Boolean));
     const qtdNaoConciliadas = notas.filter(nota => !documentosCadastrados.has(nota.clienteDocumento)).length;
-    const anterior = await prisma.importacaoFiscal.findUnique({ where: { competencia } });
+    const notasPorMes = new Map<string, typeof notas>();
+    notas.forEach(nota => {
+        const key = monthKey(nota.dataCompetencia);
+        if (!notasPorMes.has(key)) notasPorMes.set(key, []);
+        notasPorMes.get(key)!.push(nota);
+    });
+    const competencias = [...notasPorMes.keys()].sort();
+    const datasCompetencia = competencias.map(key => {
+        const [year, month] = key.split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, 1, 12));
+    });
+    const anteriores = await prisma.importacaoFiscal.findMany({
+        where: { competencia: { in: datasCompetencia } },
+        select: { id: true },
+    });
 
     try {
         await prisma.$transaction(async tx => {
-            if (anterior) await tx.importacaoFiscal.delete({ where: { id: anterior.id } });
-            await tx.importacaoFiscal.create({
-                data: {
-                    competencia,
-                    arquivoNome,
-                    qtdNotas: notas.length,
-                    valorTotal,
-                    qtdNaoConciliadas,
-                    notas: { createMany: { data: notas } },
-                },
-            });
+            if (anteriores.length > 0) {
+                await tx.importacaoFiscal.deleteMany({ where: { id: { in: anteriores.map(item => item.id) } } });
+            }
+            for (let index = 0; index < competencias.length; index++) {
+                const notasDoMes = notasPorMes.get(competencias[index])!;
+                await tx.importacaoFiscal.create({
+                    data: {
+                        competencia: datasCompetencia[index],
+                        arquivoNome,
+                        qtdNotas: notasDoMes.length,
+                        valorTotal: Math.round(notasDoMes.reduce((sum, nota) => sum + nota.valorBruto, 0) * 100) / 100,
+                        qtdNaoConciliadas: notasDoMes.filter(nota => !documentosCadastrados.has(nota.clienteDocumento)).length,
+                        notas: { createMany: { data: notasDoMes } },
+                    },
+                });
+            }
         });
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -123,11 +138,14 @@ export async function importarFaturamentoFiscal(buffer: Buffer, arquivoNome: str
     }
 
     return {
-        competencia: monthKey(competencia),
+        competenciaInicio: competencias[0],
+        competenciaFim: competencias[competencias.length - 1],
+        competencias,
+        qtdMeses: competencias.length,
         qtdNotas: notas.length,
         valorTotal,
         qtdNaoConciliadas,
-        substituiu: Boolean(anterior),
+        mesesSubstituidos: anteriores.length,
         avisoTotal,
     };
 }

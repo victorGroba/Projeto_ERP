@@ -20,7 +20,7 @@ interface Grupo { codigo: string | null; clientes: Cliente[]; faturamento: numbe
 interface VisaoClientes {
     atualizadoEm: string | null;
     fiscal: { mesesImportados: string[]; mesesEsperados: string[]; mesesAusentes: string[]; notasNoPeriodo: number; naoConciliadasNoPeriodo: number; ultimaImportacao: string | null };
-    resumo: { cadastros: number; grupos: number; faturamento: number; recebido: number; aberto: number; titulos: number };
+    resumo: { cadastros: number; grupos: number; semCodigo: number; faturamentoSemCodigo: number; faturamento: number; recebido: number; aberto: number; titulos: number };
     grupos: Grupo[];
 }
 interface ImportacaoFiscal {
@@ -49,6 +49,7 @@ export default function Clientes() {
     const [arquivoFiscal, setArquivoFiscal] = useState<File | null>(null);
     const [importandoFiscal, setImportandoFiscal] = useState(false);
     const [importacoesFiscais, setImportacoesFiscais] = useState<ImportacaoFiscal[]>([]);
+    const [somenteSemCodigo, setSomenteSemCodigo] = useState(false);
     const fiscalInput = useRef<HTMLInputElement>(null);
 
     const carregar = async (range = periodo, termo = busca) => {
@@ -132,11 +133,13 @@ export default function Clientes() {
         return next;
     });
 
-    const clientesVisiveis = useMemo(() => dados?.grupos.flatMap(g => g.clientes) || [], [dados]);
+    const gruposVisiveis = useMemo(() => dados?.grupos.filter(grupo =>
+        !somenteSemCodigo || (!grupo.codigo && grupo.faturamento > 0)) || [], [dados, somenteSemCodigo]);
+    const clientesVisiveis = useMemo(() => gruposVisiveis.flatMap(g => g.clientes), [gruposVisiveis]);
     const exportar = () => {
         if (!dados) return;
         const header = ['Código do grupo', 'Cliente', 'Empresa', 'CPF/CNPJ', 'E-mail', 'Cidade', 'UF', 'Ativo', 'Faturamento bruto', 'Títulos'];
-        const rows = dados.grupos.flatMap(grupo => grupo.clientes.map(cliente => [
+        const rows = gruposVisiveis.flatMap(grupo => grupo.clientes.map(cliente => [
             grupo.codigo || '', cliente.nome, cliente.nomeEmpresa, cliente.documento, cliente.email,
             cliente.cidade, cliente.uf, cliente.ativo ? 'Sim' : 'Não', cliente.faturamento.toFixed(2), cliente.titulos,
         ]));
@@ -166,7 +169,7 @@ export default function Clientes() {
                 <span className="fiscal-icon"><FileSpreadsheet size={21} /></span>
                 <div>
                     <h3 id="fiscal-import-title">Fechamento fiscal mensal</h3>
-                    <p>Anexe o CSV da prefeitura. Se o mês já foi importado, o arquivo anterior será substituído.</p>
+                    <p>Anexe um mês ou um período completo. Cada competência encontrada será separada e substituirá somente o mesmo mês.</p>
                 </div>
             </div>
             <div className="fiscal-import-action">
@@ -190,6 +193,9 @@ export default function Clientes() {
 
         <section className="clientes-toolbar" aria-label="Filtros da visão de clientes">
             <label className="clientes-search"><Search size={16} /><input value={busca} onChange={event => setBusca(event.target.value)} placeholder="Buscar código, cliente, CNPJ ou e-mail" /></label>
+            <button className={`clientes-filter-toggle${somenteSemCodigo ? ' active' : ''}`} onClick={() => setSomenteSemCodigo(current => !current)} aria-pressed={somenteSemCodigo}>
+                <AlertTriangle size={15} /> Sem código {dados ? `(${dados.resumo.semCodigo})` : ''}
+            </button>
             <div className="clientes-periodo">
                 <label>De <input type="date" value={de} onChange={event => setDe(event.target.value)} /></label>
                 <label>Até <input type="date" value={ate} onChange={event => setAte(event.target.value)} /></label>
@@ -202,9 +208,9 @@ export default function Clientes() {
 
         {dados && <>
             <section className="clientes-summary">
-                <article><UsersRound size={18} /><span>Cadastros</span><strong>{fmtNumber(dados.resumo.cadastros)}</strong></article>
                 <article><Building2 size={18} /><span>Grupos com código</span><strong>{fmtNumber(dados.resumo.grupos)}</strong></article>
-                <article><span>NFS-e importadas</span><strong>{fmtNumber(dados.resumo.titulos)}</strong><small>pela competência fiscal</small></article>
+                <article className={dados.resumo.semCodigo ? 'attention' : ''}><AlertTriangle size={18} /><span>Clientes sem código</span><strong>{fmtNumber(dados.resumo.semCodigo)}</strong><small>{fmt(dados.resumo.faturamentoSemCodigo)} no período</small></article>
+                <article><UsersRound size={18} /><span>Cobertura fiscal</span><strong>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length}</strong><small>{fmtNumber(dados.resumo.titulos)} NFS-e importadas</small></article>
                 <article className="money"><WalletCards size={18} /><span>Faturamento bruto</span><strong>{fmt(dados.resumo.faturamento)}</strong></article>
             </section>
             {dados.fiscal.mesesAusentes.length > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} />
@@ -212,10 +218,10 @@ export default function Clientes() {
             </div>}
             {dados.fiscal.naoConciliadasNoPeriodo > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} /> {dados.fiscal.naoConciliadasNoPeriodo} nota(s) não foram vinculadas a um cadastro do Conta Azul pelo CNPJ. Elas continuam incluídas no faturamento.</div>}
             <section className="clientes-ledger">
-                <header><div><h3>Faturamento consolidado</h3><p>{dados.grupos.length} agrupamentos · competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length} meses fiscais · {dados.fiscal.notasNoPeriodo} NFS-e</span></header>
+                <header><div><h3>{somenteSemCodigo ? 'Clientes pendentes de código' : 'Faturamento consolidado'}</h3><p>{gruposVisiveis.length} agrupamentos · competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length} meses fiscais · {dados.fiscal.notasNoPeriodo} NFS-e</span></header>
                 {loading ? <div className="clientes-empty"><Loader2 size={18} className="animate-spin" /> Atualizando visão…</div>
-                    : dados.grupos.length === 0 ? <div className="clientes-empty">Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.</div>
-                    : dados.grupos.map((grupo, index) => {
+                    : gruposVisiveis.length === 0 ? <div className="clientes-empty">{somenteSemCodigo ? 'Nenhum cliente com faturamento está sem código neste período.' : 'Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.'}</div>
+                    : gruposVisiveis.map((grupo, index) => {
                         const key = grupo.codigo || grupo.clientes[0]?.id || String(index);
                         const aberto = abertos.has(key);
                         return <div className="clientes-group" key={key}>

@@ -30,6 +30,9 @@
 .clientes-search { min-width: 280px; flex: 1; display: flex; align-items: center; gap: .55rem; color: var(--text-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 .75rem; }
 .clientes-search:focus-within { border-color: #93c5fd; box-shadow: 0 0 0 3px #dbeafe; }
 .clientes-search input { width: 100%; height: 38px; border: 0; outline: 0; background: transparent; color: var(--text-main); }
+.clientes-filter-toggle { min-height: 38px; padding: 0 .7rem; display: inline-flex; align-items: center; justify-content: center; gap: .38rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); background: var(--surface); font-size: .74rem; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.clientes-filter-toggle:hover { border-color: #fbbf24; color: var(--warning-hover); background: #fffbeb; }
+.clientes-filter-toggle.active { border-color: #f59e0b; color: #92400e; background: #fef3c7; box-shadow: inset 0 0 0 1px #f59e0b; }
 .clientes-periodo { display: flex; align-items: center; gap: .5rem; }
 .clientes-periodo label { display: flex; align-items: center; gap: .35rem; color: var(--text-muted); font-size: .75rem; font-weight: 600; }
 .clientes-periodo input { border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-main); background: var(--surface); padding: .5rem; }
@@ -47,6 +50,8 @@
 .clientes-summary strong { font-size: 1.35rem; letter-spacing: var(--tracking-tight); }
 .clientes-summary small { grid-column: 1 / -1; color: var(--text-subtle); font-size: .72rem; }
 .clientes-summary .money { background: linear-gradient(135deg, #eff6ff, #fff); }
+.clientes-summary .attention { background: #fffbeb; }
+.clientes-summary .attention > svg, .clientes-summary .attention strong { color: #b45309; }
 
 .clientes-ledger { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }
 .clientes-ledger > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border); }
@@ -94,6 +99,7 @@
   .clientes-periodo { flex-wrap: wrap; }
   .clientes-periodo label { flex: 1; min-width: 130px; flex-direction: column; align-items: stretch; }
   .clientes-search { min-width: 0; }
+  .clientes-filter-toggle { width: 100%; }
   .clientes-summary { grid-template-columns: 1fr; }
   .clientes-summary article { border-right: 0; border-bottom: 1px solid var(--border); }
   .clientes-summary article:last-child { border-bottom: 0; }

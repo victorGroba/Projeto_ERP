@@ -9,10 +9,13 @@ export async function uploadFaturamentoFiscal(req: Request, res: Response): Prom
 
     try {
         const result = await importarFaturamentoFiscal(req.file.buffer, req.file.originalname);
-        const acao = result.substituiu ? 'substituído' : 'importado';
+        const periodo = result.competenciaInicio === result.competenciaFim
+            ? result.competenciaInicio
+            : `${result.competenciaInicio} a ${result.competenciaFim}`;
+        const substituicao = result.mesesSubstituidos > 0 ? `; ${result.mesesSubstituidos} mês(es) substituído(s)` : '';
         res.json({
             success: true,
-            message: `Faturamento de ${result.competencia} ${acao}: ${result.qtdNotas} notas, total de R$ ${result.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+            message: `Faturamento de ${periodo} importado: ${result.qtdMeses} mês(es), ${result.qtdNotas} notas, total de R$ ${result.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${substituicao}.`,
             ...result,
         });
     } catch (error: any) {
