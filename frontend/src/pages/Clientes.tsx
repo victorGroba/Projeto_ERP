@@ -51,6 +51,7 @@ export default function Clientes() {
     const [importacoesFiscais, setImportacoesFiscais] = useState<ImportacaoFiscal[]>([]);
     const [somenteSemCodigo, setSomenteSemCodigo] = useState(false);
     const fiscalInput = useRef<HTMLInputElement>(null);
+    const ledgerRef = useRef<HTMLElement>(null);
 
     const carregar = async (range = periodo, termo = busca) => {
         setLoading(true);
@@ -133,6 +134,12 @@ export default function Clientes() {
         return next;
     });
 
+    const alternarSemCodigo = () => setSomenteSemCodigo(current => {
+        const next = !current;
+        if (next) window.setTimeout(() => ledgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+        return next;
+    });
+
     const gruposVisiveis = useMemo(() => dados?.grupos.filter(grupo =>
         !somenteSemCodigo || (!grupo.codigo && grupo.faturamento > 0)) || [], [dados, somenteSemCodigo]);
     const clientesVisiveis = useMemo(() => gruposVisiveis.flatMap(g => g.clientes), [gruposVisiveis]);
@@ -193,7 +200,7 @@ export default function Clientes() {
 
         <section className="clientes-toolbar" aria-label="Filtros da visão de clientes">
             <label className="clientes-search"><Search size={16} /><input value={busca} onChange={event => setBusca(event.target.value)} placeholder="Buscar código, cliente, CNPJ ou e-mail" /></label>
-            <button className={`clientes-filter-toggle${somenteSemCodigo ? ' active' : ''}`} onClick={() => setSomenteSemCodigo(current => !current)} aria-pressed={somenteSemCodigo}>
+            <button className={`clientes-filter-toggle${somenteSemCodigo ? ' active' : ''}`} onClick={alternarSemCodigo} aria-pressed={somenteSemCodigo}>
                 <AlertTriangle size={15} /> Sem código {dados ? `(${dados.resumo.semCodigo})` : ''}
             </button>
             <div className="clientes-periodo">
@@ -209,15 +216,17 @@ export default function Clientes() {
         {dados && <>
             <section className="clientes-summary">
                 <article><Building2 size={18} /><span>Grupos com código</span><strong>{fmtNumber(dados.resumo.grupos)}</strong></article>
-                <article className={dados.resumo.semCodigo ? 'attention' : ''}><AlertTriangle size={18} /><span>Clientes sem código</span><strong>{fmtNumber(dados.resumo.semCodigo)}</strong><small>{fmt(dados.resumo.faturamentoSemCodigo)} no período</small></article>
+                <button type="button" className={`summary-action${dados.resumo.semCodigo ? ' attention' : ''}${somenteSemCodigo ? ' active' : ''}`} onClick={alternarSemCodigo} aria-pressed={somenteSemCodigo}>
+                    <AlertTriangle size={18} /><span>Clientes sem código</span><strong>{fmtNumber(dados.resumo.semCodigo)}</strong><small>{fmt(dados.resumo.faturamentoSemCodigo)} no período · clique para visualizar</small>
+                </button>
                 <article><UsersRound size={18} /><span>Cobertura fiscal</span><strong>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length}</strong><small>{fmtNumber(dados.resumo.titulos)} NFS-e importadas</small></article>
-                <article className="money"><WalletCards size={18} /><span>Faturamento bruto</span><strong>{fmt(dados.resumo.faturamento)}</strong></article>
+                <article className="money"><WalletCards size={18} /><span>Faturamento bruto fiscal</span><strong>{fmt(dados.resumo.faturamento)}</strong><small>valor das NFS-e antes das retenções</small></article>
             </section>
             {dados.fiscal.mesesAusentes.length > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} />
                 <span>Faturamento parcial: faltam os CSVs de {dados.fiscal.mesesAusentes.map(fmtMes).join(', ')}. Valores líquidos da API não são somados ao bruto.</span>
             </div>}
             {dados.fiscal.naoConciliadasNoPeriodo > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} /> {dados.fiscal.naoConciliadasNoPeriodo} nota(s) não foram vinculadas a um cadastro do Conta Azul pelo CNPJ. Elas continuam incluídas no faturamento.</div>}
-            <section className="clientes-ledger">
+            <section className="clientes-ledger" ref={ledgerRef}>
                 <header><div><h3>{somenteSemCodigo ? 'Clientes pendentes de código' : 'Faturamento consolidado'}</h3><p>{gruposVisiveis.length} agrupamentos · competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length} meses fiscais · {dados.fiscal.notasNoPeriodo} NFS-e</span></header>
                 {loading ? <div className="clientes-empty"><Loader2 size={18} className="animate-spin" /> Atualizando visão…</div>
                     : gruposVisiveis.length === 0 ? <div className="clientes-empty">{somenteSemCodigo ? 'Nenhum cliente com faturamento está sem código neste período.' : 'Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.'}</div>
@@ -229,7 +238,7 @@ export default function Clientes() {
                                 <span className="clientes-chevron">{aberto ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</span>
                                 <span className={`clientes-code${grupo.codigo ? '' : ' missing'}`}>{grupo.codigo || 'Sem código'}</span>
                                 <span className="clientes-group-name"><strong>{grupo.clientes.length === 1 ? grupo.clientes[0].nomeEmpresa || grupo.clientes[0].nome : `${grupo.clientes.length} clientes vinculados`}</strong><small>{grupo.titulos} nota(s)/título(s)</small></span>
-                                <span><small>Faturamento bruto</small><strong>{fmt(grupo.faturamento)}</strong></span>
+                                <span><small>Faturamento bruto fiscal</small><strong>{fmt(grupo.faturamento)}</strong></span>
                             </button>
                             {aberto && <div className="clientes-detail-wrap"><table>
                                 <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Contato</th><th>Local</th><th>Faturamento bruto</th></tr></thead>
