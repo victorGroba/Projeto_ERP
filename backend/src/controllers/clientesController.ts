@@ -83,7 +83,16 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
         const [clientes, titulos] = await Promise.all([
             prisma.clienteContaAzul.findMany({ orderBy: [{ codigo: 'asc' }, { nome: 'asc' }] }),
             prisma.contaReceber.findMany({
-                where: { dataVencimento: { gte: de, lte: ate } },
+                where: {
+                    OR: [
+                        // Faturamento bruto pertence ao periodo de emissao/competencia,
+                        // independentemente de quando venceu ou foi recebido.
+                        { dataCompetencia: { gte: de, lte: ate } },
+                        // Compatibilidade temporaria com cargas antigas/CSV que nao
+                        // possuam competencia; desaparece apos nova sincronizacao.
+                        { dataCompetencia: null, dataVencimento: { gte: de, lte: ate } },
+                    ],
+                },
                 select: {
                     clienteId: true,
                     cliente: true,
@@ -163,6 +172,7 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                 faturamento: grupos.reduce((sum, g) => sum + g.faturamento, 0),
                 recebido: grupos.reduce((sum, g) => sum + g.recebido, 0),
                 aberto: grupos.reduce((sum, g) => sum + g.aberto, 0),
+                titulos: grupos.reduce((sum, g) => sum + g.titulos, 0),
             },
             grupos,
         });

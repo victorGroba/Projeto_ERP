@@ -18,7 +18,7 @@ interface Cliente {
 interface Grupo { codigo: string | null; clientes: Cliente[]; faturamento: number; recebido: number; aberto: number; titulos: number; }
 interface VisaoClientes {
     atualizadoEm: string | null;
-    resumo: { cadastros: number; grupos: number; faturamento: number; recebido: number; aberto: number };
+    resumo: { cadastros: number; grupos: number; faturamento: number; recebido: number; aberto: number; titulos: number };
     grupos: Grupo[];
 }
 
@@ -99,11 +99,10 @@ export default function Clientes() {
     const clientesVisiveis = useMemo(() => dados?.grupos.flatMap(g => g.clientes) || [], [dados]);
     const exportar = () => {
         if (!dados) return;
-        const header = ['Código do grupo', 'Cliente', 'Empresa', 'CPF/CNPJ', 'E-mail', 'Cidade', 'UF', 'Ativo', 'Faturamento', 'Recebido', 'Em aberto', 'Títulos'];
+        const header = ['Código do grupo', 'Cliente', 'Empresa', 'CPF/CNPJ', 'E-mail', 'Cidade', 'UF', 'Ativo', 'Faturamento bruto', 'Títulos'];
         const rows = dados.grupos.flatMap(grupo => grupo.clientes.map(cliente => [
             grupo.codigo || '', cliente.nome, cliente.nomeEmpresa, cliente.documento, cliente.email,
-            cliente.cidade, cliente.uf, cliente.ativo ? 'Sim' : 'Não', cliente.faturamento.toFixed(2),
-            cliente.recebido.toFixed(2), cliente.aberto.toFixed(2), cliente.titulos,
+            cliente.cidade, cliente.uf, cliente.ativo ? 'Sim' : 'Não', cliente.faturamento.toFixed(2), cliente.titulos,
         ]));
         const content = [header, ...rows].map(row => row.map(csvCell).join(';')).join('\n');
         const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' }));
@@ -114,7 +113,7 @@ export default function Clientes() {
 
     return <div className="clientes-page fade-in">
         <section className="clientes-intro">
-            <div><h2>Clientes por grupo cadastral</h2><p>O código do cliente reúne cadastros com nomes ou documentos diferentes e mostra a receita consolidada do grupo.</p></div>
+            <div><h2>Faturamento bruto por grupo</h2><p>Considera o valor total dos títulos emitidos no período de competência, independentemente de estarem pagos ou em aberto.</p></div>
             <div className="clientes-actions">
                 <button className="clientes-btn secondary" onClick={exportar} disabled={!clientesVisiveis.length}><Download size={16} /> Exportar CSV</button>
                 <button className="clientes-btn primary" onClick={sincronizar} disabled={syncing}>
@@ -142,31 +141,29 @@ export default function Clientes() {
             <section className="clientes-summary">
                 <article><UsersRound size={18} /><span>Cadastros</span><strong>{fmtNumber(dados.resumo.cadastros)}</strong></article>
                 <article><Building2 size={18} /><span>Grupos com código</span><strong>{fmtNumber(dados.resumo.grupos)}</strong></article>
-                <article className="money"><WalletCards size={18} /><span>Faturamento no período</span><strong>{fmt(dados.resumo.faturamento)}</strong></article>
-                <article><span>Recebido</span><strong>{fmt(dados.resumo.recebido)}</strong><small>Em aberto: {fmt(dados.resumo.aberto)}</small></article>
+                <article><span>Títulos emitidos</span><strong>{fmtNumber(dados.resumo.titulos)}</strong><small>pela data de competência</small></article>
+                <article className="money"><WalletCards size={18} /><span>Faturamento bruto</span><strong>{fmt(dados.resumo.faturamento)}</strong></article>
             </section>
             <section className="clientes-ledger">
-                <header><div><h3>Faturamento consolidado</h3><p>{dados.grupos.length} agrupamentos no período selecionado</p></div><span>{dados.atualizadoEm ? `Cadastros atualizados em ${new Date(dados.atualizadoEm).toLocaleString('pt-BR')}` : 'Cadastros ainda não sincronizados'}</span></header>
+                <header><div><h3>Faturamento consolidado</h3><p>{dados.grupos.length} agrupamentos · emissão/competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.atualizadoEm ? `Cadastros atualizados em ${new Date(dados.atualizadoEm).toLocaleString('pt-BR')}` : 'Cadastros ainda não sincronizados'}</span></header>
                 {loading ? <div className="clientes-empty"><Loader2 size={18} className="animate-spin" /> Atualizando visão…</div>
                     : dados.grupos.length === 0 ? <div className="clientes-empty">Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.</div>
                     : dados.grupos.map((grupo, index) => {
                         const key = grupo.codigo || grupo.clientes[0]?.id || String(index);
                         const aberto = abertos.has(key);
                         return <div className="clientes-group" key={key}>
-                            <button className="clientes-group-row" onClick={() => toggle(key)} aria-expanded={aberto}>
+                            <button className="clientes-group-row gross-only" onClick={() => toggle(key)} aria-expanded={aberto}>
                                 <span className="clientes-chevron">{aberto ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</span>
                                 <span className={`clientes-code${grupo.codigo ? '' : ' missing'}`}>{grupo.codigo || 'Sem código'}</span>
                                 <span className="clientes-group-name"><strong>{grupo.clientes.length === 1 ? grupo.clientes[0].nomeEmpresa || grupo.clientes[0].nome : `${grupo.clientes.length} clientes vinculados`}</strong><small>{grupo.titulos} título(s)</small></span>
-                                <span><small>Faturamento</small><strong>{fmt(grupo.faturamento)}</strong></span>
-                                <span><small>Recebido</small><strong className="received">{fmt(grupo.recebido)}</strong></span>
-                                <span><small>Em aberto</small><strong className={grupo.aberto > 0 ? 'open' : ''}>{fmt(grupo.aberto)}</strong></span>
+                                <span><small>Faturamento bruto</small><strong>{fmt(grupo.faturamento)}</strong></span>
                             </button>
                             {aberto && <div className="clientes-detail-wrap"><table>
-                                <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Contato</th><th>Local</th><th>Faturamento</th><th>Em aberto</th></tr></thead>
+                                <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Contato</th><th>Local</th><th>Faturamento bruto</th></tr></thead>
                                 <tbody>{grupo.clientes.map(cliente => <tr key={cliente.id}>
                                     <td><strong>{cliente.nomeEmpresa || cliente.nome}</strong>{cliente.nomeEmpresa && <small>{cliente.nome}</small>}</td>
                                     <td>{cliente.documento || '—'}</td><td>{cliente.email || '—'}</td><td>{[cliente.cidade, cliente.uf].filter(Boolean).join(' / ') || '—'}</td>
-                                    <td>{fmt(cliente.faturamento)}</td><td>{fmt(cliente.aberto)}</td>
+                                    <td>{fmt(cliente.faturamento)}</td>
                                 </tr>)}</tbody>
                             </table></div>}
                         </div>;
