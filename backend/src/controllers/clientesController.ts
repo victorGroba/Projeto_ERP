@@ -10,6 +10,16 @@ const normalize = (value: string | null | undefined) =>
 
 const digits = (value: string | null | undefined) => (value || '').replace(/\D/g, '');
 const monthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+function monthKeysBetween(start: Date, end: Date): string[] {
+    const keys: string[] = [];
+    const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1, 12));
+    const limit = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1, 12));
+    while (cursor <= limit) {
+        keys.push(monthKey(cursor));
+        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+    return keys;
+}
 
 function parseDate(value: unknown, endOfDay = false): Date | null {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -104,8 +114,6 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                     valorPago: true,
                     valorAberto: true,
                     status: true,
-                    dataCompetencia: true,
-                    dataVencimento: true,
                 },
             }),
             prisma.notaFiscalServico.findMany({
@@ -158,14 +166,6 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             linha.recebido += recebido;
             linha.aberto += aberto;
 
-            // Enquanto um mês ainda não recebeu o CSV fiscal, mantém o valor da
-            // API como fallback. Assim que o fechamento é importado, apenas as
-            // NFS-e da prefeitura compõem o faturamento bruto daquele mês.
-            const competenciaTitulo = titulo.dataCompetencia ?? titulo.dataVencimento;
-            if (!mesesImportados.has(monthKey(competenciaTitulo))) {
-                linha.faturamento += titulo.valorTotal ?? titulo.valor;
-                linha.titulos++;
-            }
         });
 
         notasFiscais.forEach(nota => {
@@ -201,6 +201,10 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             .sort((a, b) => b.faturamento - a.faturamento)
             .map(g => ({ ...g, clientes: g.clientes.sort((a, b) => b.faturamento - a.faturamento) }));
 
+        const mesesEsperados = monthKeysBetween(de, ate);
+        const mesesImportadosNoPeriodo = mesesEsperados.filter(mes => mesesImportados.has(mes));
+        const mesesAusentes = mesesEsperados.filter(mes => !mesesImportados.has(mes));
+
         res.json({
             periodo: { de: req.query.de, ate: req.query.ate },
             atualizadoEm: [
@@ -208,7 +212,9 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                 importacoesFiscais[0]?.createdAt || null,
             ].reduce<Date | null>((latest, date) => date && (!latest || date > latest) ? date : latest, null),
             fiscal: {
-                mesesImportados: [...mesesImportados].sort(),
+                mesesImportados: mesesImportadosNoPeriodo,
+                mesesEsperados,
+                mesesAusentes,
                 notasNoPeriodo: notasFiscais.length,
                 naoConciliadasNoPeriodo: notasFiscais.filter(nota =>
                     !porDocumento.has(nota.clienteDocumento) && !porNome.has(normalize(nota.clienteNome))).length,

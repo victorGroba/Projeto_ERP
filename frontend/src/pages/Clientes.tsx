@@ -9,6 +9,7 @@ const hoje = new Date();
 const inicioAno = `${hoje.getFullYear()}-01-01`;
 const fmt = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 const fmtNumber = (value: number) => new Intl.NumberFormat('pt-BR').format(value || 0);
+const fmtMes = (value: string) => new Date(`${value}-01T12:00:00Z`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 interface Cliente {
     id: string; codigo: string | null; nome: string; nomeEmpresa: string | null; documento: string | null;
@@ -18,7 +19,7 @@ interface Cliente {
 interface Grupo { codigo: string | null; clientes: Cliente[]; faturamento: number; recebido: number; aberto: number; titulos: number; }
 interface VisaoClientes {
     atualizadoEm: string | null;
-    fiscal: { mesesImportados: string[]; notasNoPeriodo: number; naoConciliadasNoPeriodo: number; ultimaImportacao: string | null };
+    fiscal: { mesesImportados: string[]; mesesEsperados: string[]; mesesAusentes: string[]; notasNoPeriodo: number; naoConciliadasNoPeriodo: number; ultimaImportacao: string | null };
     resumo: { cadastros: number; grupos: number; faturamento: number; recebido: number; aberto: number; titulos: number };
     grupos: Grupo[];
 }
@@ -203,12 +204,15 @@ export default function Clientes() {
             <section className="clientes-summary">
                 <article><UsersRound size={18} /><span>Cadastros</span><strong>{fmtNumber(dados.resumo.cadastros)}</strong></article>
                 <article><Building2 size={18} /><span>Grupos com código</span><strong>{fmtNumber(dados.resumo.grupos)}</strong></article>
-                <article><span>Notas/títulos</span><strong>{fmtNumber(dados.resumo.titulos)}</strong><small>{dados.fiscal.notasNoPeriodo ? 'NFS-e por competência fiscal' : 'API como fonte provisória'}</small></article>
+                <article><span>NFS-e importadas</span><strong>{fmtNumber(dados.resumo.titulos)}</strong><small>pela competência fiscal</small></article>
                 <article className="money"><WalletCards size={18} /><span>Faturamento bruto</span><strong>{fmt(dados.resumo.faturamento)}</strong></article>
             </section>
+            {dados.fiscal.mesesAusentes.length > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} />
+                <span>Faturamento parcial: faltam os CSVs de {dados.fiscal.mesesAusentes.map(fmtMes).join(', ')}. Valores líquidos da API não são somados ao bruto.</span>
+            </div>}
             {dados.fiscal.naoConciliadasNoPeriodo > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} /> {dados.fiscal.naoConciliadasNoPeriodo} nota(s) não foram vinculadas a um cadastro do Conta Azul pelo CNPJ. Elas continuam incluídas no faturamento.</div>}
             <section className="clientes-ledger">
-                <header><div><h3>Faturamento consolidado</h3><p>{dados.grupos.length} agrupamentos · competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.fiscal.notasNoPeriodo ? `${dados.fiscal.notasNoPeriodo} NFS-e da prefeitura no período` : 'Sem CSV fiscal no período · usando API'}</span></header>
+                <header><div><h3>Faturamento consolidado</h3><p>{dados.grupos.length} agrupamentos · competência de {new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR')} a {new Date(`${periodo.ate}T12:00:00`).toLocaleDateString('pt-BR')}</p></div><span>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length} meses fiscais · {dados.fiscal.notasNoPeriodo} NFS-e</span></header>
                 {loading ? <div className="clientes-empty"><Loader2 size={18} className="animate-spin" /> Atualizando visão…</div>
                     : dados.grupos.length === 0 ? <div className="clientes-empty">Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.</div>
                     : dados.grupos.map((grupo, index) => {
