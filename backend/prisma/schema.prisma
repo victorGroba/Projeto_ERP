@@ -146,3 +146,58 @@ model HistoricoImportacao {
   lancamentos   Lancamento[]
   contasReceber ContaReceber[]
 }
+
+// ==========================================
+// CUSTEIO DOS ENSAIOS (LABORATÓRIO)
+// ==========================================
+
+// Insumo das fichas técnicas. O preço não fica no cadastro: cada compra ou
+// reajuste vira um InsumoPreco e o vigente é o de vigência mais recente,
+// para o custo dos ensaios poder ser recalculado em qualquer data.
+model Insumo {
+  id         String        @id @default(uuid())
+  chave      String        @unique // nome normalizado; evita duplicar ao reimportar a planilha
+  nome       String
+  unidade    String?       // unidade da quantidade da embalagem (g, mL, un...)
+  categoria  String?
+  setor      String?       // FQ ou MICRO
+  ativo      Boolean       @default(true)
+  pendencia  String?       // o que precisa ser conferido no cadastro
+  observacao String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  precos     InsumoPreco[]
+}
+
+model InsumoPreco {
+  id             String   @id @default(uuid())
+  insumoId       String
+  insumo         Insumo   @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  precoEmbalagem Float
+  qtdEmbalagem   Float
+  precoUnitario  Float    // precoEmbalagem / qtdEmbalagem, na unidade do insumo
+  vigencia       DateTime
+  fornecedor     String?
+  origem         String?  // "Manual" ou o arquivo importado
+  createdAt      DateTime @default(now())
+
+  @@index([insumoId, vigencia])
+}
+
+// Equipamentos e calibrações amortizados no custo dos ensaios. Os valores são
+// tabelados, por isso ficam direto no cadastro, sem histórico.
+model Equipamento {
+  id            String   @id @default(uuid())
+  chave         String   @unique
+  nome          String
+  tipo          String   @default("EQUIPAMENTO") // EQUIPAMENTO ou CALIBRACAO
+  setor         String?
+  valor         Float?
+  vidaUtilMeses Int?     // prazo de amortização; na calibração é a periodicidade
+  diasUsoMes    Int?
+  ativo         Boolean  @default(true)
+  pendencia     String?
+  observacao    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

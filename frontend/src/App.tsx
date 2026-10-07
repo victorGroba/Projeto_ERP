@@ -16,7 +16,7 @@ import ResultadosDiretoria from './pages/ResultadosDiretoria';
 import Indices from './pages/Indices';
 import RelatorioAnual from './pages/RelatorioAnual';
 import Clientes from './pages/Clientes';
-import CustosLaboratorio from './pages/CustosLaboratorio';
+import CustosLaboratorio from './pages/custos/CustosLaboratorio';
 import {
     LayoutDashboard, AlertTriangle, TrendingDown,
     LogOut, UploadCloud, LineChart, Settings, BookOpen,
@@ -47,7 +47,7 @@ const PAGE_TITLES: Record<string, string> = {
     '/':               'Visão Geral',
     '/inadimplencia':  'Inadimplência',
     '/despesas':       'Custos & Despesas',
-    '/custos-lab':     'Custeio Analítico e Predição (Laboratório)',
+    '/custos-lab':     'Custeio Analítico (Laboratório)',
     '/resultados':     'Resultados (Diretoria)',
     '/indices':        'Índices Gerenciais',
     '/relatorio':      'Relatório Anual',

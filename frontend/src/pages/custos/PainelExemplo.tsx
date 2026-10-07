@@ -4,12 +4,13 @@ import {
   PieChart, Pie, Cell, LineChart, Line 
 } from 'recharts';
 import { BarChart3, Beaker, FlaskConical, TestTube2, DollarSign, Calculator } from 'lucide-react';
-import { mockCustosEnsaio, formatCurrency, getCustoTotal } from '../data/custosLaboratorioMock';
-import '../index.css';
+import { mockCustosEnsaio, formatCurrency, getCustoTotal } from './painelExemploMock';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-export default function CustosLaboratorio() {
+// Protótipo com valores fixos. Será substituído pelo custo calculado a partir
+// das fichas técnicas (fase 2) e pelo rateio de indiretos (fase 4).
+export default function PainelExemplo() {
   const [inflacaoReagente, setInflacaoReagente] = useState<number>(0);
   const [aumentoDemanda, setAumentoDemanda] = useState<number>(0);
 

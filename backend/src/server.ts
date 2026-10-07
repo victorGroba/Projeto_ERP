@@ -13,6 +13,7 @@ import syncRoutes from './routes/syncRoutes';
 import oauthRoutes from './routes/oauthRoutes';
 import auditRoutes from './routes/auditRoutes';
 import clientesRoutes from './routes/clientesRoutes';
+import custosRoutes from './routes/custosRoutes';
 
 dotenv.config();
 
@@ -44,6 +45,9 @@ app.use('/api/audit', auditRoutes);
 
 // Cadastro de clientes e faturamento agrupado pelo codigo cadastral
 app.use('/api/clientes', clientesRoutes);
+
+// Custeio dos ensaios: insumos (com histórico de preço) e equipamentos
+app.use('/api/custos', custosRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {
