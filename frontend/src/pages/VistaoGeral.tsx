@@ -1,13 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-    TrendingDown, AlertTriangle, Landmark, TrendingUp,
+    AlertTriangle, Landmark, TrendingUp,
     ArrowUpRight, ArrowDownRight, Loader2, ChevronRight,
-    SlidersHorizontal, Check, RefreshCw, ShieldCheck, ArrowRight,
+    RefreshCw, ShieldCheck, ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import PeriodFilterBar from '../components/PeriodFilterBar';
+import { FilterBar } from '@/components/filter-bar/FilterBar';
+import type { FacetConfig } from '@/components/filter-bar/types';
+import { useGlobalPeriod } from '@/context/GlobalPeriodContext';
 import { usePrefersReducedMotion, useCountUp, initials, Ring, LastPointDot } from '../components/softUi';
 import '../components/SoftUI.css';
 import './Dashboard.css';
@@ -21,48 +23,6 @@ const fmtDateLabel = (iso: string) =>
 
 const THRESHOLD_DEVEDOR = 10_000;
 
-// ── Filtro de período ────────────────────────────────────────────────────────
-type PresetKey = 'this_month' | 'last_month' | 'last_3m' | 'last_6m' | 'ytd' | 'this_year' | 'last_year' | 'custom';
-
-const PRESETS: { key: PresetKey; label: string }[] = [
-    { key: 'this_month', label: 'Este mês' },
-    { key: 'last_month', label: 'Mês passado' },
-    { key: 'last_3m',    label: 'Últimos 3 meses' },
-    { key: 'last_6m',    label: 'Últimos 6 meses' },
-    { key: 'ytd',        label: 'Ano até hoje' },
-    { key: 'this_year',  label: 'Ano completo' },
-    { key: 'last_year',  label: 'Ano passado' },
-    { key: 'custom',     label: 'Personalizado' },
-];
-
-const pad = (n: number) => String(n).padStart(2, '0');
-const toISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-function computeRange(preset: PresetKey, fallback: { de: string; ate: string }): { de: string; ate: string } {
-    const agora = new Date();
-    const y = agora.getFullYear();
-    const m = agora.getMonth();
-
-    switch (preset) {
-        case 'this_month':
-            return { de: toISO(new Date(y, m, 1)), ate: toISO(agora) };
-        case 'last_month':
-            return { de: toISO(new Date(y, m - 1, 1)), ate: toISO(new Date(y, m, 0)) };
-        case 'last_3m':
-            return { de: toISO(new Date(y, m - 2, 1)), ate: toISO(agora) };
-        case 'last_6m':
-            return { de: toISO(new Date(y, m - 5, 1)), ate: toISO(agora) };
-        case 'ytd':
-            return { de: `${y}-01-01`, ate: toISO(agora) };
-        case 'this_year':
-            return { de: `${y}-01-01`, ate: `${y}-12-31` };
-        case 'last_year':
-            return { de: `${y - 1}-01-01`, ate: `${y - 1}-12-31` };
-        default:
-            return fallback;
-    }
-}
-
 function agruparDevedores(lista: { cliente: string; valorDevido: number }[]) {
     const acima     = lista.filter(d => d.valorDevido >  THRESHOLD_DEVEDOR);
     const somaAbaixo = lista
@@ -75,8 +35,6 @@ function agruparDevedores(lista: { cliente: string; valorDevido: number }[]) {
 
 const hoje     = new Date();
 const anoAtual = hoje.getFullYear();
-const DEFAULT_DE  = `${anoAtual}-01-01`;
-const DEFAULT_ATE = hoje.toISOString().split('T')[0];
 
 interface CategoriaDespesa {
     categoria:     string;
@@ -98,18 +56,12 @@ interface ResultadoMes {
 const VistaoGeral: React.FC = () => {
     const navigate = useNavigate();
     const reducedMotion = usePrefersReducedMotion();
-
-    // ── filtros de período ──────────────────────────────────────────────────
-    const [preset,         setPreset]         = useState<PresetKey>('ytd');
-    const [periodoInicio,  setPeriodoInicio]  = useState(DEFAULT_DE);
-    const [periodoFim,     setPeriodoFim]     = useState(DEFAULT_ATE);
-    const [periodoAplic,   setPeriodoAplic]   = useState({ de: DEFAULT_DE, ate: DEFAULT_ATE });
+    const { de, ate, preset, compareEnabled, compareDe, compareAte, applyAll } = useGlobalPeriod();
+    const periodoAplic = { de, ate };
 
     // ── exclusão de categorias ─────────────────────────────────────────────
     const [categorias,         setCategorias]         = useState<CategoriaDespesa[]>([]);
     const [categoriasExcluidas, setCategoriasExcluidas] = useState<Set<string>>(new Set());
-    const [showCatPanel,       setShowCatPanel]       = useState(false);
-    const catRef = useRef<HTMLDivElement>(null);
 
     // ── dados base (aging — não muda com período) ──────────────────────────
     const [kpiBase,  setKpiBase]  = useState<KpiBase | null>(null);
@@ -143,7 +95,7 @@ const VistaoGeral: React.FC = () => {
             })
             .catch(console.error)
             .finally(() => setLoadBase(false));
-    }, [periodoAplic]);
+    }, [de, ate]);
 
     // ── fetch por período ──────────────────────────────────────────────────
     useEffect(() => {
@@ -158,7 +110,7 @@ const VistaoGeral: React.FC = () => {
             setRecebidoPeriodo(rec);
         }).catch(console.error)
           .finally(() => setLoadPeriodo(false));
-    }, [periodoAplic]);
+    }, [de, ate]);
 
     // ── fetch do resultado mensal (ano corrente) para a curva de saldo ─────
     useEffect(() => {
@@ -175,16 +127,6 @@ const VistaoGeral: React.FC = () => {
             .then(r => setUltimoSync(r.data?.ultimoSync || null))
             .catch(() => setUltimoSync(null))
             .finally(() => setSyncCarregado(true));
-    }, []);
-
-    // fechar dropdown ao clicar fora
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (catRef.current && !catRef.current.contains(e.target as Node))
-                setShowCatPanel(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
     }, []);
 
     // ── cálculos derivados de categorias ──────────────────────────────────
@@ -220,34 +162,13 @@ const VistaoGeral: React.FC = () => {
     const recebidoAnim = useCountUp(recebidoPeriodo, 900, reducedMotion || loadPeriodo);
     const saldoAnim   = useCountUp(saldoPeriodo, 900, reducedMotion || loadPeriodo);
 
-    const handlePresetChange = (novo: PresetKey) => {
-        setPreset(novo);
-        if (novo === 'custom') return;
-        const range = computeRange(novo, { de: periodoInicio, ate: periodoFim });
-        setPeriodoInicio(range.de);
-        setPeriodoFim(range.ate);
-        setPeriodoAplic(range);
+    const facetCategorias: FacetConfig = {
+        key: 'categoria',
+        label: 'Excluir categorias',
+        options: categorias.map(c => ({ value: c.categoria, label: c.categoria })),
+        selected: Array.from(categoriasExcluidas),
+        onChange: (values) => setCategoriasExcluidas(new Set(values)),
     };
-
-    const handlePeriodoInicioChange = (valor: string) => {
-        setPreset('custom');
-        setPeriodoInicio(valor);
-    };
-    const handlePeriodoFimChange = (valor: string) => {
-        setPreset('custom');
-        setPeriodoFim(valor);
-    };
-
-    const periodoPendente = periodoInicio !== periodoAplic.de || periodoFim !== periodoAplic.ate;
-
-    const aplicarFiltro = () => setPeriodoAplic({ de: periodoInicio, ate: periodoFim });
-
-    const toggleCategoria = (cat: string) =>
-        setCategoriasExcluidas(prev => {
-            const next = new Set(prev);
-            next.has(cat) ? next.delete(cat) : next.add(cat);
-            return next;
-        });
 
     // dot customizado: só o último mês ganha destaque, igual à referência.
     const SaldoDot = LastPointDot(resultadoMensal.length - 1);
@@ -292,99 +213,14 @@ const VistaoGeral: React.FC = () => {
                 </div>
             </div>
 
-            {/* ── Barra de Filtros (pílula) ── */}
-            <div className="su-toolbar">
-                <PeriodFilterBar
-                    icon={<SlidersHorizontal size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
-                    label="Período"
-                    presets={PRESETS}
-                    preset={preset}
-                    onPresetChange={(key) => handlePresetChange(key as PresetKey)}
-                    de={periodoInicio}
-                    ate={periodoFim}
-                    onDeChange={handlePeriodoInicioChange}
-                    onAteChange={handlePeriodoFimChange}
-                    onApply={aplicarFiltro}
-                    pending={periodoPendente}
-                    isLoading={loadPeriodo}
-                />
-
-                <div className="su-toolbar-sep" />
-
-                {/* Filtro de categorias (relativo ao card de despesa) */}
-                <div ref={catRef} style={{ position: 'relative' }}>
-                    <button
-                        onClick={() => setShowCatPanel(v => !v)}
-                        style={{
-                            ...btnSecStyle,
-                            ...(qtdExcluidas > 0 ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}),
-                        }}
-                    >
-                        <TrendingDown size={13} />
-                        Categorias de despesa
-                        {qtdExcluidas > 0 && (
-                            <span style={{ background: 'var(--primary)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, borderRadius: '1rem', padding: '0.1rem 0.45rem' }}>
-                                -{qtdExcluidas}
-                            </span>
-                        )}
-                    </button>
-
-                    {showCatPanel && categorias.length > 0 && (
-                        <div style={{
-                            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 100,
-                            background: 'var(--surface)', border: '1px solid var(--border)',
-                            borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)',
-                            minWidth: 280, maxHeight: 340, overflowY: 'auto', padding: '0.5rem',
-                        }}>
-                            {/* Ações rápidas */}
-                            <div style={{ display: 'flex', gap: '0.375rem', padding: '0.375rem 0.5rem 0.625rem', borderBottom: '1px solid var(--border)', marginBottom: '0.375rem' }}>
-                                <button onClick={() => setCategoriasExcluidas(new Set())} style={btnMicroStyle}>
-                                    Incluir todas
-                                </button>
-                                <button
-                                    onClick={() => setCategoriasExcluidas(new Set(categorias.map(c => c.categoria)))}
-                                    style={btnMicroStyle}
-                                >
-                                    Excluir todas
-                                </button>
-                            </div>
-                            {categorias.map(c => {
-                                const excluida = categoriasExcluidas.has(c.categoria);
-                                return (
-                                    <button
-                                        key={c.categoria}
-                                        onClick={() => toggleCategoria(c.categoria)}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                            width: '100%', padding: '0.5rem 0.625rem',
-                                            borderRadius: 'var(--radius-sm)', border: 'none',
-                                            background: excluida ? 'var(--background)' : 'transparent',
-                                            cursor: 'pointer', textAlign: 'left',
-                                            opacity: excluida ? 0.45 : 1,
-                                            transition: 'background 0.1s',
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                                            border: `2px solid ${excluida ? 'var(--border)' : 'var(--primary)'}`,
-                                            background: excluida ? 'transparent' : 'var(--primary)',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        }}>
-                                            {!excluida && <Check size={10} color="#fff" strokeWidth={3} />}
-                                        </div>
-                                        <span style={{ flex: 1, fontSize: '0.8125rem', color: 'var(--text-main)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {c.categoria}
-                                        </span>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', flexShrink: 0 }}>
-                                            {fmt(c.totalAtual)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* ── Barra de Filtros ── */}
+            <FilterBar
+                de={de} ate={ate} preset={preset}
+                compareEnabled={compareEnabled} compareDe={compareDe} compareAte={compareAte}
+                onPeriodApply={applyAll}
+                facets={[facetCategorias]}
+                sticky={false}
+            />
 
             {/* ── Tiles compactos ── */}
             <div className="su-tiles">
@@ -584,20 +420,6 @@ const chipSyncStyle = (nivel: keyof typeof CORES_SYNC): React.CSSProperties => {
         border: `1px solid ${nivel === 'ok' ? 'transparent' : c.bd}`,
         cursor: 'pointer',
     };
-};
-
-const btnSecStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: '0.375rem',
-    padding: '0.375rem 0.75rem', borderRadius: 'var(--radius-sm)',
-    background: 'transparent', border: '1px solid var(--border)',
-    fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)',
-    cursor: 'pointer', transition: 'border-color 0.15s',
-};
-
-const btnMicroStyle: React.CSSProperties = {
-    padding: '0.25rem 0.625rem', borderRadius: 'var(--radius-sm)',
-    background: 'var(--background)', border: '1px solid var(--border)',
-    fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer',
 };
 
 export default VistaoGeral;

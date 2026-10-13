@@ -6,6 +6,8 @@ import {
     GitCompare, BarChart2, User, Users, Loader2, ShieldQuestion,
 } from 'lucide-react';
 import { usePrefersReducedMotion, useCountUp, Ring } from '../components/softUi';
+import { FilterBar } from '@/components/filter-bar/FilterBar';
+import { useGlobalPeriod } from '@/context/GlobalPeriodContext';
 import '../components/SoftUI.css';
 import './Dashboard.css';
 
@@ -22,6 +24,7 @@ const Inadimplencia: React.FC = () => {
     const reducedMotion = usePrefersReducedMotion();
     const token = localStorage.getItem('@ContaAzul:token');
     const headers = { Authorization: `Bearer ${token}` };
+    const { de, ate, preset, compareEnabled, compareDe, compareAte, applyAll } = useGlobalPeriod();
 
     // ── modo ──────────────────────────────────────────────────────────────
     const [mode, setMode] = useState<'analise' | 'comparativo'>('analise');
@@ -31,7 +34,6 @@ const Inadimplencia: React.FC = () => {
     const [thresholdInput, setThresholdInput] = useState('6000');
 
     // ── análise: estado principal ─────────────────────────────────────────
-    const [year,        setYear]        = useState(anoAtual);
     const [agingData,   setAgingData]   = useState<any[]>([]);
     const [topDevedores,setTopDevedores]= useState<any[]>([]);
     const [totalAtraso, setTotalAtraso] = useState(0);
@@ -53,14 +55,14 @@ const Inadimplencia: React.FC = () => {
     const [loadingComp, setLoadingComp] = useState(false);
 
     // ── fetches ───────────────────────────────────────────────────────────
-    useEffect(() => { if (mode === 'analise') fetchAnalise(); }, [year, mode]);
+    useEffect(() => { if (mode === 'analise') fetchAnalise(); }, [de, ate, mode]);
 
     const fetchAnalise = async () => {
         setIsLoading(true);
         setExpandedDevedores(new Set());
         try {
             const res = await axios.get(
-                `/api/dashboard/inadimplencia/aging?year=${year}`, { headers }
+                `/api/dashboard/inadimplencia/aging?de=${de}&ate=${ate}`, { headers }
             );
             const { aging, totalAtraso, topDevedores } = res.data;
             setAgingData([
@@ -78,17 +80,21 @@ const Inadimplencia: React.FC = () => {
     };
 
     // Detalhamento individual — carregado quando o usuário muda para esse modo
+    // Período mudou — o detalhamento individual (se já carregado) fica
+    // desatualizado, então limpa pra forçar um novo fetch no próximo efeito.
+    useEffect(() => { setDevedoresDetalhe([]); }, [de, ate]);
+
     useEffect(() => {
         if (viewMode === 'individual' && devedoresDetalhe.length === 0) {
             fetchDetalhe();
         }
-    }, [viewMode, year]);
+    }, [viewMode, de, ate]);
 
     const fetchDetalhe = async () => {
         setLoadingDetalhe(true);
         try {
             const res = await axios.get(
-                `/api/dashboard/inadimplencia/devedores-detalhe?de=${year}-01-01&ate=${year}-12-31`,
+                `/api/dashboard/inadimplencia/devedores-detalhe?de=${de}&ate=${ate}`,
                 { headers }
             );
             setDevedoresDetalhe(res.data.devedores || []);
@@ -166,16 +172,17 @@ const Inadimplencia: React.FC = () => {
                         style={{ width: '86px', textAlign: 'right', fontWeight: 600, cursor: 'text' }}
                     />
                 </div>
-
-                {/* Seletor de ano (só no modo análise) */}
-                {mode === 'analise' && (
-                    <select value={year} onChange={e => { setYear(Number(e.target.value)); setDevedoresDetalhe([]); }} className="select">
-                        <option value={anoAtual - 1}>{anoAtual - 1}</option>
-                        <option value={anoAtual}>{anoAtual}</option>
-                        <option value={anoAtual + 1}>{anoAtual + 1}</option>
-                    </select>
-                )}
             </div>
+
+            {/* Período (só no modo análise — o A×B tem seu próprio par de intervalos) */}
+            {mode === 'analise' && (
+                <FilterBar
+                    de={de} ate={ate} preset={preset}
+                    compareEnabled={compareEnabled} compareDe={compareDe} compareAte={compareAte}
+                    onPeriodApply={applyAll}
+                    sticky={false}
+                />
+            )}
 
             {/* ══════════════════════════════════════════════════════════════
                 MODO ANÁLISE

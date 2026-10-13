@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, ChevronDown, ChevronRight, Download, FileSpreadsheet, Loader2, RefreshCw, Search, SlidersHorizontal, TrendingUp, UploadCloud, UsersRound, WalletCards } from 'lucide-react';
-import PeriodFilterBar from '../components/PeriodFilterBar';
-import { COMPARISON_PRESETS, PRESETS, computeRange, fmtDateLabel, shiftYear, toISO } from '../utils/periodPresets';
-import type { PresetKey, PresetKeyB } from '../utils/periodPresets';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, ChevronDown, ChevronRight, Download, FileSpreadsheet, Loader2, RefreshCw, Search, TrendingUp, UploadCloud, UsersRound, WalletCards } from 'lucide-react';
+import { fmtDateLabel } from '../utils/periodPresets';
 import { usePrefersReducedMotion } from '../components/softUi';
+import { FilterBar } from '@/components/filter-bar/FilterBar';
+import type { FacetConfig } from '@/components/filter-bar/types';
+import { useGlobalPeriod } from '@/context/GlobalPeriodContext';
 import '../components/SoftUI.css';
 import './Clientes.css';
-
-const hoje = new Date();
-const PERIODO_INICIAL = { de: `${hoje.getFullYear()}-01-01`, ate: toISO(hoje) };
 const fmt = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 const fmtCompact = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }).format(value || 0);
 const fmtNumber = (value: number) => new Intl.NumberFormat('pt-BR').format(value || 0);
@@ -81,16 +79,10 @@ const csvCell = (value: unknown) => {
 
 export default function Clientes() {
     const reducedMotion = usePrefersReducedMotion();
-    const [preset, setPreset] = useState<PresetKey>('ytd');
-    const [customDe, setCustomDe] = useState(PERIODO_INICIAL.de);
-    const [customAte, setCustomAte] = useState(PERIODO_INICIAL.ate);
-    const [periodo, setPeriodo] = useState(PERIODO_INICIAL);
-    // Período de comparação: por padrão ('auto') o mesmo intervalo um ano antes.
-    const periodoBInicial = { de: shiftYear(PERIODO_INICIAL.de, -1), ate: shiftYear(PERIODO_INICIAL.ate, -1) };
-    const [presetB, setPresetB] = useState<PresetKeyB>('auto');
-    const [customBDe, setCustomBDe] = useState(periodoBInicial.de);
-    const [customBAte, setCustomBAte] = useState(periodoBInicial.ate);
-    const [periodoB, setPeriodoB] = useState(periodoBInicial);
+    const { de, ate, preset, compareDe, compareAte, compareEnabled, applyAll } = useGlobalPeriod();
+    const periodo = { de, ate };
+    const periodoB = { de: compareDe, ate: compareAte };
+    const [grupoFiltro, setGrupoFiltro] = useState<string[]>([]);
     const [tendencia, setTendencia] = useState<Tendencia>('todos');
     const [busca, setBusca] = useState('');
     const [dados, setDados] = useState<VisaoClientes | null>(null);
@@ -124,38 +116,8 @@ export default function Clientes() {
     useEffect(() => {
         const timer = window.setTimeout(() => { void carregar(periodo, busca, periodoB); }, 350);
         return () => window.clearTimeout(timer);
-    }, [periodo, periodoB, busca]);
+    }, [de, ate, compareDe, compareAte, busca]);
 
-    // ── Filtro de períodos (mesmo comportamento da tela de Despesas) ──
-    const syncAutoComparison = (novoA: { de: string; ate: string }) => {
-        if (presetB !== 'auto') return;
-        const rangeB = { de: shiftYear(novoA.de, -1), ate: shiftYear(novoA.ate, -1) };
-        setCustomBDe(rangeB.de); setCustomBAte(rangeB.ate); setPeriodoB(rangeB);
-    };
-    const handlePresetChange = (novo: PresetKey) => {
-        setPreset(novo);
-        if (novo === 'custom') return;
-        const range = computeRange(novo, periodo);
-        setCustomDe(range.de); setCustomAte(range.ate); setPeriodo(range);
-        syncAutoComparison(range);
-    };
-    const aplicarCustom = () => {
-        if (!customDe || !customAte || customDe > customAte) return;
-        setPeriodo({ de: customDe, ate: customAte });
-        syncAutoComparison({ de: customDe, ate: customAte });
-    };
-    const handlePresetBChange = (novo: PresetKeyB) => {
-        setPresetB(novo);
-        if (novo === 'custom') return;
-        const range = novo === 'auto'
-            ? { de: shiftYear(periodo.de, -1), ate: shiftYear(periodo.ate, -1) }
-            : computeRange(novo, periodoB);
-        setCustomBDe(range.de); setCustomBAte(range.ate); setPeriodoB(range);
-    };
-    const aplicarCustomB = () => {
-        if (!customBDe || !customBAte || customBDe > customBAte) return;
-        setPeriodoB({ de: customBDe, ate: customBAte });
-    };
 
     const carregarImportacoesFiscais = async () => {
         try {
@@ -178,7 +140,7 @@ export default function Clientes() {
     useEffect(() => {
         const timer = window.setTimeout(() => { void carregarComposicao(periodo, grupoComposicao); }, 350);
         return () => window.clearTimeout(timer);
-    }, [periodo, grupoComposicao]);
+    }, [de, ate, grupoComposicao]);
 
     useEffect(() => {
         let active = true;
@@ -282,8 +244,9 @@ export default function Clientes() {
         if (!busca && grupo.faturamento <= 0 && grupo.faturamentoAnterior <= 0) return false;
         if (somenteSemCodigo && (grupo.codigo || grupo.faturamento <= 0)) return false;
         if (tendencia !== 'todos' && tendenciaDe(grupo.faturamento, grupo.faturamentoAnterior) !== tendencia) return false;
+        if (grupoFiltro.length > 0 && (!grupo.codigo || !grupoFiltro.includes(grupo.codigo))) return false;
         return true;
-    }) || [], [dados, somenteSemCodigo, tendencia, busca]);
+    }) || [], [dados, somenteSemCodigo, tendencia, busca, grupoFiltro]);
     const clientesVisiveis = useMemo(() => gruposVisiveis.flatMap(g => g.clientes), [gruposVisiveis]);
     const coberturaFiscal = useMemo(() => {
         if (!importacoesFiscais.length) return null;
@@ -323,6 +286,20 @@ export default function Clientes() {
         const link = document.createElement('a');
         link.href = url; link.download = `clientes-conta-azul-${periodo.de}-${periodo.ate}.csv`; link.click();
         URL.revokeObjectURL(url);
+    };
+
+    // "+ Filtro" de grupo econômico — antes um <select> nativo com ~300 opções
+    // (ver "Composição de vendas por serviço" logo abaixo), agora um combobox
+    // pesquisável com multisseleção, filtrando o ledger principal no cliente.
+    const facetGrupo: FacetConfig = {
+        key: 'grupo',
+        label: 'Grupo econômico',
+        options: [...(dados?.grupos || [])]
+            .filter(g => g.codigo)
+            .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
+            .map(g => ({ value: g.codigo as string, label: g.codigo as string })),
+        selected: grupoFiltro,
+        onChange: setGrupoFiltro,
     };
 
     return <div className="clientes-page fade-in su-shell">
@@ -372,39 +349,13 @@ export default function Clientes() {
             </div>
         </section>
 
-        <section className="clientes-periodos" aria-label="Períodos comparados">
-            <PeriodFilterBar
-                icon={<SlidersHorizontal size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
-                label="Período"
-                presets={PRESETS}
-                preset={preset}
-                onPresetChange={key => handlePresetChange(key as PresetKey)}
-                de={customDe}
-                ate={customAte}
-                onDeChange={valor => { setPreset('custom'); setCustomDe(valor); }}
-                onAteChange={valor => { setPreset('custom'); setCustomAte(valor); }}
-                onApply={aplicarCustom}
-                pending={customDe !== periodo.de || customAte !== periodo.ate}
-                isLoading={loading}
-                trailing={<span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{fmtDateLabel(periodo.de)} – {fmtDateLabel(periodo.ate)}</span>}
-            />
-            <div className="clientes-periodos-divider" />
-            <PeriodFilterBar
-                icon={<TrendingUp size={15} color="var(--text-subtle)" style={{ flexShrink: 0 }} />}
-                label="Comparar com"
-                presets={COMPARISON_PRESETS}
-                preset={presetB}
-                onPresetChange={key => handlePresetBChange(key as PresetKeyB)}
-                de={customBDe}
-                ate={customBAte}
-                onDeChange={valor => { setPresetB('custom'); setCustomBDe(valor); }}
-                onAteChange={valor => { setPresetB('custom'); setCustomBAte(valor); }}
-                onApply={aplicarCustomB}
-                pending={customBDe !== periodoB.de || customBAte !== periodoB.ate}
-                isLoading={loading}
-                trailing={`${fmtDateLabel(periodoB.de)} – ${fmtDateLabel(periodoB.ate)}`}
-            />
-        </section>
+        <FilterBar
+            de={de} ate={ate} preset={preset}
+            compareEnabled={compareEnabled} compareDe={compareDe} compareAte={compareAte}
+            onPeriodApply={applyAll}
+            facets={[facetGrupo]}
+            sticky={false}
+        />
 
         <section className="clientes-toolbar" aria-label="Filtros da visão de clientes">
             <label className="clientes-search"><Search size={16} /><input value={busca} onChange={event => setBusca(event.target.value)} placeholder="Buscar código, cliente, CNPJ ou e-mail" /></label>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GlobalPeriodProvider } from './context/GlobalPeriodContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import VistaoGeral from './pages/VistaoGeral';
@@ -120,7 +121,9 @@ function MainLayout() {
                     </div>
                 </header>
                 <section className="content">
-                    <Outlet />
+                    <GlobalPeriodProvider>
+                        <Outlet />
+                    </GlobalPeriodProvider>
                 </section>
             </main>
         </div>
