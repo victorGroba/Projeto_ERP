@@ -139,3 +139,62 @@
 .com-unidade { display: inline-flex; align-items: center; gap: .3rem; }
 .com-unidade span { min-width: 1.6rem; color: var(--text-muted); font-size: .72rem; text-align: left; }
 .custos-form-actions.sticky { position: sticky; bottom: 0; padding: .75rem 0; background: var(--surface); border-top: 1px solid var(--border); }
+
+/* ── Serviços e margem de contribuição ── */
+.custos-link { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--primary); font-size: .75rem; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.custos-link:hover { color: var(--primary-hover); }
+
+.servicos-lista { display: flex; flex-direction: column; gap: .75rem; }
+
+.servico-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-xs); overflow: hidden; }
+.servico-card.inativo { opacity: .65; }
+
+.servico-head { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .9rem 1.1rem; border: 0; background: none; cursor: pointer; text-align: left; color: var(--text-muted); }
+.servico-head:hover { background: var(--surface-hover); }
+.servico-head-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .2rem; }
+.servico-nome { display: flex; align-items: center; gap: .5rem; font-size: .9375rem; font-weight: 700; color: var(--text-main); }
+.servico-sub { display: flex; align-items: center; gap: .5rem; font-size: .76rem; color: var(--text-muted); }
+
+.servico-margem { display: flex; flex-direction: column; align-items: flex-end; gap: .1rem; font-size: 1.0625rem; font-weight: 800; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.servico-margem.ok { color: var(--success-hover); }
+.servico-margem.alerta { color: var(--danger-hover); }
+.servico-margem small { font-size: .66rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--text-subtle); }
+
+.servico-body { display: flex; flex-direction: column; gap: .6rem; padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); padding-top: .9rem; }
+.servico-acoes { display: flex; gap: .5rem; padding-top: .2rem; }
+
+.grupo-card { display: block; width: 100%; padding: .9rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; text-align: left; transition: border-color .15s, box-shadow .15s; }
+.grupo-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+.grupo-card-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+.grupo-nome { font-size: .875rem; font-weight: 700; color: var(--text-main); margin-right: .2rem; }
+
+.grupo-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .5rem; margin-bottom: .65rem; }
+.grupo-stats > div { padding: .55rem .7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--background); }
+.grupo-stats > div > span { display: block; color: var(--text-muted); font-size: .68rem; font-weight: 600; margin-bottom: .15rem; }
+.grupo-stats strong { display: flex; align-items: baseline; gap: .35rem; font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--text-main); }
+.grupo-stats strong small { font-size: .75rem; font-weight: 700; }
+.grupo-stats .destaque { background: var(--surface); border-width: 2px; }
+.grupo-stats .destaque.ok { border-color: var(--success-border); background: var(--success-light); }
+.grupo-stats .destaque.ok strong { color: var(--success-hover); }
+.grupo-stats .destaque.alerta { border-color: var(--danger-border); background: var(--danger-light); }
+.grupo-stats .destaque.alerta strong { color: var(--danger-hover); }
+
+.grupo-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--background); }
+.grupo-bar i { display: block; height: 100%; }
+.grupo-bar .custo { background: var(--brand-graphite); }
+.grupo-bar .imposto { background: var(--warning); }
+.grupo-bar .margem { background: var(--success); }
+.grupo-bar.negativa { background: var(--danger-light); }
+.grupo-bar.negativa .custo { background: var(--text-subtle); }
+.grupo-bar.negativa .imposto { background: var(--danger); }
+
+.grupo-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.grupo-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .4rem .3rem .65rem; border-radius: 999px; background: var(--primary-light); color: var(--primary-hover); font-size: .76rem; font-weight: 600; }
+.grupo-chip button { display: flex; padding: .15rem; border: 0; background: rgba(0,0,0,.08); border-radius: 999px; color: inherit; cursor: pointer; }
+.grupo-chip button:hover { background: rgba(0,0,0,.18); }
+
+/* .custos-resumo-ficha já existe (ficha de ensaio); aqui só os modificadores de cor pro destaque de margem */
+.custos-resumo-ficha .destaque.ok { background: var(--success-light); border-color: var(--success-border); }
+.custos-resumo-ficha .destaque.ok strong { color: var(--success-hover); }
+.custos-resumo-ficha .destaque.alerta { background: var(--danger-light); border-color: var(--danger-border); }
+.custos-resumo-ficha .destaque.alerta strong { color: var(--danger-hover); }

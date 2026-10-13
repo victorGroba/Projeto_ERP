@@ -101,6 +101,54 @@ export interface Parametro {
     descricao: string;
 }
 
+export interface GrupoMargem {
+    custoDireto: number;
+    imposto: number;
+    margemContribuicao: number;
+    percentualMargem: number | null;
+    qtdAvisos: number;
+    avisos: string[];
+}
+
+export interface GrupoAnalitico {
+    id: string;
+    servicoId: string;
+    nome: string;
+    setor: string | null;
+    precoVenda: number;
+    nomeAllims: string | null;
+    pendencia: string | null;
+    ensaios: { ensaioId: string; ensaio: { nome: string; ativo: boolean } }[];
+    margem: GrupoMargem;
+}
+
+export interface GrupoInput {
+    nome: string;
+    setor: string | null;
+    precoVenda: number;
+    nomeAllims: string | null;
+    pendencia: string | null;
+    ensaioIds: string[];
+}
+
+export interface Servico {
+    id: string;
+    nome: string;
+    codigo: string | null;
+    observacao: string | null;
+    ativo: boolean;
+    grupos: GrupoAnalitico[];
+}
+
+export const grupoParaInput = (g: GrupoAnalitico): GrupoInput => ({
+    nome: g.nome,
+    setor: g.setor,
+    precoVenda: g.precoVenda,
+    nomeAllims: g.nomeAllims,
+    pendencia: g.pendencia,
+    ensaioIds: g.ensaios.map(e => e.ensaioId),
+});
+
 export const TIPOS_EQUIPAMENTO = [
     { value: 'EQUIPAMENTO', label: 'Equipamento' },
     { value: 'CALIBRACAO', label: 'Calibração / qualificação' },

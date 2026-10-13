@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BarChart3, ClipboardList, FlaskConical, Microscope, UploadCloud } from 'lucide-react';
-import { EnsaioResumo, Equipamento, Insumo, custosApi } from './custosApi';
+import { BarChart3, Briefcase, ClipboardList, FlaskConical, Microscope, UploadCloud } from 'lucide-react';
+import { EnsaioResumo, Equipamento, Insumo, Servico, custosApi } from './custosApi';
 import EnsaiosTab from './EnsaiosTab';
 import InsumosTab from './InsumosTab';
 import EquipamentosTab from './EquipamentosTab';
+import ServicosTab from './ServicosTab';
 import PainelExemplo from './PainelExemplo';
 import './Custos.css';
 
-type Aba = 'ensaios' | 'insumos' | 'equipamentos' | 'painel';
+type Aba = 'ensaios' | 'insumos' | 'equipamentos' | 'servicos' | 'painel';
 const ABA_KEY = 'ca-bi:custos-aba';
 
 function abaInicial(): Aba {
     try {
         const salva = localStorage.getItem(ABA_KEY);
-        if (salva === 'ensaios' || salva === 'insumos' || salva === 'equipamentos' || salva === 'painel') return salva;
+        if (salva === 'ensaios' || salva === 'insumos' || salva === 'equipamentos' || salva === 'servicos' || salva === 'painel') return salva;
     } catch { /* sem storage: usa o padrão */ }
     return 'ensaios';
 }
@@ -23,6 +24,7 @@ export default function CustosLaboratorio() {
     const [insumos, setInsumos] = useState<Insumo[]>([]);
     const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
     const [ensaios, setEnsaios] = useState<EnsaioResumo[]>([]);
+    const [servicos, setServicos] = useState<Servico[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [feedback, setFeedback] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
     const [arquivo, setArquivo] = useState<File | null>(null);
@@ -32,10 +34,12 @@ export default function CustosLaboratorio() {
     const recarregarInsumos = useCallback(async () => setInsumos(await custosApi<Insumo[]>('/insumos')), []);
     const recarregarEquipamentos = useCallback(async () => setEquipamentos(await custosApi<Equipamento[]>('/equipamentos')), []);
     const recarregarEnsaios = useCallback(async () => setEnsaios(await custosApi<EnsaioResumo[]>('/ensaios')), []);
-    // Preço de insumo ou valor de equipamento muda o custo dos ensaios.
+    const recarregarServicos = useCallback(async () => setServicos(await custosApi<Servico[]>('/servicos')), []);
+    // Preço de insumo ou valor de equipamento muda o custo dos ensaios e, por
+    // tabela, a margem de cada grupo analítico — por isso recarrega tudo junto.
     const recarregarCadastrosEEnsaios = useCallback(
-        async () => { await Promise.all([recarregarInsumos(), recarregarEquipamentos(), recarregarEnsaios()]); },
-        [recarregarInsumos, recarregarEquipamentos, recarregarEnsaios],
+        async () => { await Promise.all([recarregarInsumos(), recarregarEquipamentos(), recarregarEnsaios(), recarregarServicos()]); },
+        [recarregarInsumos, recarregarEquipamentos, recarregarEnsaios, recarregarServicos],
     );
 
     useEffect(() => {
@@ -99,6 +103,9 @@ export default function CustosLaboratorio() {
                 <button className={aba === 'equipamentos' ? 'active' : ''} onClick={() => trocarAba('equipamentos')}>
                     <Microscope size={15} /> Equipamentos e calibrações <span className="tab-count">{equipamentos.length}</span>
                 </button>
+                <button className={aba === 'servicos' ? 'active' : ''} onClick={() => trocarAba('servicos')}>
+                    <Briefcase size={15} /> Serviços e margem <span className="tab-count">{servicos.length}</span>
+                </button>
                 <button className={`tab-exemplo${aba === 'painel' ? ' active' : ''}`} onClick={() => trocarAba('painel')}>
                     <BarChart3 size={15} /> Painel (exemplo)
                 </button>
@@ -112,6 +119,8 @@ export default function CustosLaboratorio() {
                 <InsumosTab insumos={insumos} recarregar={recarregarCadastrosEEnsaios} />
             ) : aba === 'equipamentos' ? (
                 <EquipamentosTab equipamentos={equipamentos} recarregar={recarregarCadastrosEEnsaios} />
+            ) : aba === 'servicos' ? (
+                <ServicosTab servicos={servicos} ensaios={ensaios} recarregar={recarregarCadastrosEEnsaios} />
             ) : (
                 <>
                     <div className="custos-aviso-exemplo">

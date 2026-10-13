@@ -213,6 +213,106 @@ function matchMock(url: string): any | null {
     return null;
 }
 
+// ── Módulo de custeio laboratorial (custosApi usa fetch, não axios) ───────
+function ensaio(id: string, nome: string, setor: string, total: number) {
+    return {
+        id, nome, codigoLims: null, metodologia: null, setor, percentualCQ: 15,
+        custoPlanilha: null, origem: null, ativo: true, pendencia: null, observacao: null,
+        qtdItens: 3,
+        custo: { maoDeObra: total * 0.4, materiais: total * 0.45, equipamentos: total * 0.1, controleQualidade: total * 0.05, total, qtdAvisos: 0 },
+    };
+}
+
+const MOCK_ENSAIOS = [
+    ensaio('ens-dqo', 'DQO', 'FQ', 18.4),
+    ensaio('ens-dbo', 'DBO', 'FQ', 24.1),
+    ensaio('ens-ph', 'pH', 'FQ', 4.2),
+    ensaio('ens-cloro', 'Cloro Residual', 'FQ', 6.8),
+    ensaio('ens-turbidez', 'Turbidez', 'FQ', 5.1),
+    ensaio('ens-coliformes', 'Coliformes Totais', 'MICRO', 22.5),
+    ensaio('ens-ecoli', 'Escherichia coli', 'MICRO', 19.9),
+    ensaio('ens-cpp', 'Contagem Padrão em Placas', 'MICRO', 15.3),
+];
+
+function grupoRef(ids: string[]) {
+    const byId = new Map(MOCK_ENSAIOS.map(e => [e.id, e]));
+    return ids.map(id => ({ ensaioId: id, ensaio: { nome: byId.get(id)!.nome, ativo: true } }));
+}
+function margemDe(precoVenda: number, ids: string[], aliquota = 0.08, extra: Partial<{ pendencia: string }> = {}) {
+    const custoDireto = ids.reduce((acc, id) => acc + (MOCK_ENSAIOS.find(e => e.id === id)?.custo.total ?? 0), 0);
+    const imposto = precoVenda * aliquota;
+    const margemContribuicao = precoVenda - imposto - custoDireto;
+    return {
+        custoDireto, imposto, margemContribuicao,
+        percentualMargem: precoVenda > 0 ? (margemContribuicao / precoVenda) * 100 : null,
+        qtdAvisos: 0, avisos: [], ...extra,
+    };
+}
+
+const MOCK_SERVICOS = [
+    {
+        id: 'srv-agua-rede', nome: 'Água de Rede', codigo: 'SRV-001', observacao: null, ativo: true,
+        grupos: [
+            {
+                id: 'grp-agua-fq', servicoId: 'srv-agua-rede', nome: 'Água de Rede — Físico-Química', setor: 'FQ',
+                precoVenda: 85, nomeAllims: null, pendencia: null,
+                ensaios: grupoRef(['ens-dqo', 'ens-dbo', 'ens-ph', 'ens-cloro', 'ens-turbidez']),
+                margem: margemDe(85, ['ens-dqo', 'ens-dbo', 'ens-ph', 'ens-cloro', 'ens-turbidez']),
+            },
+            {
+                id: 'grp-agua-micro', servicoId: 'srv-agua-rede', nome: 'Água de Rede — Microbiologia', setor: 'MICRO',
+                precoVenda: 62, nomeAllims: null, pendencia: null,
+                ensaios: grupoRef(['ens-coliformes', 'ens-ecoli', 'ens-cpp']),
+                margem: margemDe(62, ['ens-coliformes', 'ens-ecoli', 'ens-cpp']),
+            },
+        ],
+    },
+    {
+        id: 'srv-efluente', nome: 'Efluente Industrial', codigo: 'SRV-002', observacao: null, ativo: true,
+        grupos: [
+            {
+                id: 'grp-efluente', servicoId: 'srv-efluente', nome: 'Efluente — Completo', setor: 'FQ',
+                precoVenda: 220, nomeAllims: null, pendencia: null,
+                ensaios: grupoRef(['ens-dqo', 'ens-dbo', 'ens-ph', 'ens-cloro']),
+                margem: margemDe(220, ['ens-dqo', 'ens-dbo', 'ens-ph', 'ens-cloro']),
+            },
+        ],
+    },
+    {
+        id: 'srv-monitoramento', nome: 'Monitoramento Ambiental Mensal', codigo: 'SRV-003', observacao: null, ativo: true,
+        grupos: [
+            {
+                id: 'grp-monitoramento', servicoId: 'srv-monitoramento', nome: 'Monitoramento — Padrão', setor: 'FQ',
+                precoVenda: 150, nomeAllims: 'Monitoramento Mensal Padrão', pendencia: 'Confirmar se inclui coleta externa.',
+                ensaios: grupoRef(['ens-turbidez', 'ens-ph']),
+                margem: margemDe(150, ['ens-turbidez', 'ens-ph'], 0.08, { pendencia: 'Confirmar se inclui coleta externa.' }),
+            },
+        ],
+    },
+];
+
+function matchFetchMock(pathname: string): any | null {
+    if (pathname === '/api/custos/ensaios') return MOCK_ENSAIOS;
+    if (pathname === '/api/custos/servicos') return MOCK_SERVICOS;
+    if (pathname === '/api/custos/insumos') return [];
+    if (pathname === '/api/custos/equipamentos') return [];
+    return null;
+}
+
+const fetchOriginal = window.fetch.bind(window);
+window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const method = (init?.method || 'GET').toUpperCase();
+    if (method === 'GET') {
+        const pathname = new URL(url, window.location.origin).pathname;
+        const mock = matchFetchMock(pathname);
+        if (mock) {
+            return new Response(JSON.stringify(mock), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+    }
+    return fetchOriginal(input, init);
+};
+
 axios.interceptors.request.use(config => {
     const mock = matchMock(config.url || '');
     if (mock) {
