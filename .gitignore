@@ -69,3 +69,7 @@ backend/*.json
 
 # backups do banco gerados pelo script de auditoria
 *.db.bak-*
+*.tar.gz
+
+# Configuração local do Maestri (não é código do projeto)
+.maestri/
