@@ -223,6 +223,7 @@ model Ensaio {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   itens         FichaItem[]
+  gruposVenda   GrupoEnsaio[]
 }
 
 // Linha da ficha técnica. "rendimento" é quantas análises a linha atende:
@@ -250,10 +251,57 @@ model FichaItem {
   @@index([equipamentoId])
 }
 
-// Parâmetros gerais do custeio (custo do minuto do técnico, dias úteis...).
+// Parâmetros gerais do custeio (custo do minuto do técnico, dias úteis,
+// alíquota de impostos...). Lançamento manual — financeiro/Daniel atualiza.
 model ParametroCusto {
   chave     String   @id
   valor     Float
   descricao String?
   updatedAt DateTime @updatedAt
+}
+
+// Serviço vendido ao cliente (catálogo comercial do laboratório). Um serviço
+// pode se dividir em mais de um grupo com preço próprio (ex.: "Água de Rede"
+// vende um grupo Físico-Químico e um grupo Microbiológico separadamente).
+model Servico {
+  id         String           @id @default(uuid())
+  chave      String           @unique
+  nome       String
+  codigo     String?          // referência do catálogo de origem (ex.: "Serviço 01")
+  ativo      Boolean          @default(true)
+  observacao String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  grupos     GrupoAnalitico[]
+}
+
+// Unidade de venda de fato: tem preço próprio e reúne os ensaios que o
+// cliente recebe por esse preço. A margem de contribuição é calculada aqui
+// (preço − imposto − soma do custo direto dos ensaios do grupo), não no
+// Servico nem no Ensaio isolado.
+model GrupoAnalitico {
+  id         String        @id @default(uuid())
+  servicoId  String
+  servico    Servico       @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+  nome       String
+  setor      String?       // FQ ou MICRO
+  precoVenda Float
+  nomeAllims String?       // de-para manual com o nome do serviço no Allims (preenchido depois, com o Daniel)
+  pendencia  String?       // ex.: parâmetro da planilha de origem sem ensaio correspondente no cadastro
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  ensaios    GrupoEnsaio[]
+
+  @@index([servicoId])
+}
+
+model GrupoEnsaio {
+  id       String         @id @default(uuid())
+  grupoId  String
+  grupo    GrupoAnalitico @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  ensaioId String
+  ensaio   Ensaio         @relation(fields: [ensaioId], references: [id], onDelete: Restrict)
+
+  @@unique([grupoId, ensaioId])
+  @@index([ensaioId])
 }

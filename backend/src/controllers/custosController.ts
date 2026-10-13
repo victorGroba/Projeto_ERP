@@ -11,6 +11,9 @@ import {
     atualizarEnsaio, criarEnsaio, duplicarEnsaio, excluirEnsaio,
     listarEnsaios, listarParametros, obterEnsaio, salvarParametros, simularFicha,
 } from '../services/ensaiosService';
+import {
+    atualizarServico, criarServico, excluirServico, listarServicos, obterServico,
+} from '../services/servicosService';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -104,6 +107,23 @@ export const postDuplicarEnsaio = tratar('duplicar o ensaio', async (req, res) =
 });
 
 export const postSimularFicha = tratar('calcular a ficha', async req => simularFicha(req.body ?? {}));
+
+export const getServicos = tratar('listar os serviços', async req => listarServicos(dataConsulta(req)));
+
+export const getServico = tratar('carregar o serviço', async (req, res) => {
+    const servico = await obterServico(req.params.id, dataConsulta(req));
+    if (!servico) res.status(404).json({ message: 'Serviço não encontrado.' });
+    return servico;
+});
+
+export const postServico = tratar('cadastrar o serviço', async (req, res) => {
+    res.status(201);
+    return criarServico(req.body ?? {});
+});
+
+export const putServico = tratar('salvar o serviço', async req => atualizarServico(req.params.id, req.body ?? {}));
+
+export const deleteServico = tratar('excluir o serviço', async req => excluirServico(req.params.id));
 
 export const getParametros = tratar('carregar os parâmetros', async () => listarParametros());
 

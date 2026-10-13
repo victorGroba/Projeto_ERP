@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 export const PARAMETROS_PADRAO = {
     custoMinutoTecnico: { valor: 0.25, descricao: 'Custo do minuto do técnico (R$). Planilha: R$ 4.050/mês = R$ 0,25/min.' },
     diasUteisMes: { valor: 21, descricao: 'Dias úteis por mês, usados para amortizar equipamentos (252 por ano).' },
+    aliquotaImpostos: { valor: 0, descricao: 'Alíquota de impostos sobre o preço de venda (%), usada na margem de contribuição. Lançamento manual — financeiro/Daniel atualiza quando mudar.' },
 } as const;
 
 export type ChaveParametro = keyof typeof PARAMETROS_PADRAO;
@@ -273,6 +274,22 @@ export async function listarEnsaios(data?: Date) {
             },
         };
     });
+}
+
+export interface CustoEnsaio { nome: string; total: number; ativo: boolean; avisos: string[] }
+
+// Custo direto (já com CQ) de um conjunto de ensaios, para compor o custo de
+// um grupo de venda sem recalcular a ficha inteira em cada chamada.
+export async function custoDiretoEnsaios(ids: string[], data?: Date): Promise<Map<string, CustoEnsaio>> {
+    const idsUnicos = [...new Set(ids)];
+    const [ensaios, ctx] = await Promise.all([
+        prisma.ensaio.findMany({ where: { id: { in: idsUnicos } }, include: { itens: itensOrdenados } }),
+        carregarContexto(data),
+    ]);
+    return new Map(ensaios.map(({ itens, ...ensaio }) => {
+        const r = calcularFicha(itens.map(paraItemFicha), ensaio.percentualCQ, ctx);
+        return [ensaio.id, { nome: ensaio.nome, total: r.total, ativo: ensaio.ativo, avisos: r.avisos }];
+    }));
 }
 
 export async function obterEnsaio(id: string, data?: Date) {

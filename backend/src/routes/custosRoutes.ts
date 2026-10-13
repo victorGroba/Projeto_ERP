@@ -8,6 +8,7 @@ import {
     putEquipamento, putInsumo, uploadPlanilhaCustos,
     deleteEnsaio, getEnsaio, getEnsaios, getParametros, postDuplicarEnsaio,
     postEnsaio, postSimularFicha, putEnsaio, putParametros,
+    deleteServico, getServico, getServicos, postServico, putServico,
 } from '../controllers/custosController';
 
 const router = Router();
@@ -41,6 +42,12 @@ router.get('/ensaios/:id', getEnsaio);
 router.put('/ensaios/:id', putEnsaio);
 router.delete('/ensaios/:id', deleteEnsaio);
 router.post('/ensaios/:id/duplicar', postDuplicarEnsaio);
+
+router.get('/servicos', getServicos);
+router.post('/servicos', postServico);
+router.get('/servicos/:id', getServico);
+router.put('/servicos/:id', putServico);
+router.delete('/servicos/:id', deleteServico);
 
 router.get('/parametros', getParametros);
 router.put('/parametros', putParametros);
