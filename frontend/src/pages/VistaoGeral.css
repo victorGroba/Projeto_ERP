@@ -1,0 +1,334 @@
+/* ── Piloto visual: Visão Geral ───────────────────────────────────────────
+   Traduz a linguagem "soft UI" de referência (cartão flutuante, mistura de
+   superfícies tintadas e brancas, bloco de destaque em gradiente, anel de
+   progresso, curva suave) para a marca Mattos & Mattos — petróleo/grafite,
+   sem lavanda/roxo. Escopo: somente esta página. */
+
+.vg-shell {
+  background: var(--surface);
+  border-radius: 28px;
+  box-shadow: var(--shadow-lg);
+  padding: 2rem 2.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* ── Barra de período em formato pílula ── */
+.vg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: var(--background);
+  border-radius: 999px;
+  padding: 0.625rem 1.25rem;
+}
+
+.vg-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-strong);
+  margin: 0 0.125rem;
+}
+
+/* ── Tiles compactos (Despesa / Atraso / Recebido) ── */
+.vg-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.vg-tile {
+  border-radius: 20px;
+  padding: 1.25rem 1.375rem;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.vg-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.vg-tile--primary { background: var(--primary-light); }
+.vg-tile--danger  { background: var(--danger-light); }
+.vg-tile--success { background: var(--success-light); }
+
+.vg-tile-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vg-tile-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.vg-tile-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.vg-tile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+  width: fit-content;
+}
+
+/* ── Linha composta: hero + gráfico/anel ── */
+.vg-composite {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.1fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.vg-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vg-hero h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+  margin-bottom: 0.375rem;
+}
+
+.vg-hero p {
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.vg-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  width: fit-content;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.vg-pill-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.vg-gradient-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 1.25rem 1.5rem;
+  color: #fff;
+  background: linear-gradient(135deg, #0a454d 0%, var(--primary) 55%, var(--brand-teal) 100%);
+  margin-top: auto;
+}
+
+.vg-gradient-card::after {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.16), transparent 70%);
+  pointer-events: none;
+}
+
+.vg-gradient-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.vg-gradient-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 0.25rem;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+
+.vg-gradient-foot {
+  font-size: 0.8125rem;
+  opacity: 0.8;
+  margin-top: 0.375rem;
+  position: relative;
+}
+
+/* ── Coluna direita: gráfico + anel ── */
+.vg-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vg-chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 1.5rem 1.5rem 0.75rem;
+}
+
+.vg-chart-card h3 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.vg-chart-card p {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+  margin-bottom: 0.5rem;
+}
+
+.vg-ring-card {
+  background: var(--text-main);
+  border-radius: 22px;
+  padding: 1.5rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.vg-ring-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.vg-ring-wrap {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vg-ring-pct {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.vg-ring-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-bottom: 0.25rem;
+}
+
+.vg-ring-desc {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ── Lista de devedores com avatar circular ── */
+.vg-debtor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vg-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--danger-light);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.vg-avatar--muted {
+  background: var(--surface-hover);
+  color: var(--text-subtle);
+}
+
+/* ── Módulos ── */
+.vg-module-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+  border-radius: 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.vg-module-row:hover {
+  transform: translateY(-1px);
+}
+
+.vg-module-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .vg-composite {
+    grid-template-columns: 1fr;
+  }
+  .vg-shell {
+    padding: 1.5rem;
+    border-radius: 20px;
+  }
+}

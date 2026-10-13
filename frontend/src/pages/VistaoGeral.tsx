@@ -3,11 +3,13 @@ import axios from 'axios';
 import {
     TrendingDown, AlertTriangle, Landmark, TrendingUp,
     ArrowUpRight, ArrowDownRight, Loader2, ChevronRight,
-    SlidersHorizontal, Check, RefreshCw,
+    SlidersHorizontal, Check, RefreshCw, ShieldCheck, ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import PeriodFilterBar from '../components/PeriodFilterBar';
 import './Dashboard.css';
+import './VistaoGeral.css';
 
 const API = '';
 const fmt = (v: number) =>
@@ -17,6 +19,75 @@ const fmtDateLabel = (iso: string) =>
     new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: '2-digit' });
 
 const THRESHOLD_DEVEDOR = 10_000;
+
+// ── Animação: respeita "prefers-reduced-motion" e usa só requestAnimationFrame
+// (sem lib nova — o bundle já está no limite de 500kB só com recharts/lucide). ──
+function usePrefersReducedMotion() {
+    const [reduced, setReduced] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+        setReduced(mq.matches);
+        const handler = () => setReduced(mq.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+    return reduced;
+}
+
+function useCountUp(target: number, durationMs: number, reduced: boolean) {
+    const [value, setValue] = useState(0);
+    const prevRef = useRef(0);
+    useEffect(() => {
+        if (reduced || !Number.isFinite(target)) {
+            setValue(target);
+            prevRef.current = target;
+            return;
+        }
+        const start = prevRef.current;
+        const startTime = performance.now();
+        let raf = 0;
+        const tick = (now: number) => {
+            const t = Math.min(1, (now - startTime) / durationMs);
+            const eased = 1 - Math.pow(1 - t, 3);
+            setValue(start + (target - start) * eased);
+            if (t < 1) raf = requestAnimationFrame(tick);
+            else prevRef.current = target;
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [target, durationMs, reduced]);
+    return value;
+}
+
+const initials = (nome: string) =>
+    nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+
+// ── Anel de progresso (bloco de destaque escuro) ─────────────────────────────
+const Ring: React.FC<{ pct: number; size?: number; reduced: boolean }> = ({ pct, size = 92, reduced }) => {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        const id = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(id);
+    }, []);
+    const stroke = 9;
+    const r = (size - stroke) / 2;
+    const c = 2 * Math.PI * r;
+    const clamped = Math.max(0, Math.min(100, pct));
+    const offset = c - ((mounted ? clamped : 0) / 100) * c;
+    return (
+        <div className="vg-ring-wrap" style={{ width: size, height: size }}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={stroke} />
+                <circle
+                    cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#3e93a0" strokeWidth={stroke}
+                    strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+                    style={{ transition: reduced ? 'none' : 'stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)' }}
+                />
+            </svg>
+            <span className="vg-ring-pct">{clamped.toFixed(0)}%</span>
+        </div>
+    );
+};
 
 // ── Filtro de período ────────────────────────────────────────────────────────
 type PresetKey = 'this_month' | 'last_month' | 'last_3m' | 'last_6m' | 'ytd' | 'this_year' | 'last_year' | 'custom';
@@ -87,8 +158,14 @@ interface KpiBase {
     topDevedores: { cliente: string; valorDevido: number }[];
 }
 
+interface ResultadoMes {
+    mes: string;
+    resultado: number;
+}
+
 const VistaoGeral: React.FC = () => {
     const navigate = useNavigate();
+    const reducedMotion = usePrefersReducedMotion();
 
     // ── filtros de período ──────────────────────────────────────────────────
     const [preset,         setPreset]         = useState<PresetKey>('ytd');
@@ -109,6 +186,9 @@ const VistaoGeral: React.FC = () => {
     // ── dados do período ───────────────────────────────────────────────────
     const [recebidoPeriodo, setRecebidoPeriodo] = useState(0);
     const [loadPeriodo,     setLoadPeriodo]     = useState(false);
+
+    // ── resultado mensal do ano corrente (alimenta a curva de saldo) ───────
+    const [resultadoMensal, setResultadoMensal] = useState<ResultadoMes[]>([]);
 
     // ── idade dos dados ────────────────────────────────────────────────────
     const [ultimoSync, setUltimoSync] = useState<{ em: string; modo: string } | null>(null);
@@ -148,6 +228,13 @@ const VistaoGeral: React.FC = () => {
           .finally(() => setLoadPeriodo(false));
     }, [periodoAplic]);
 
+    // ── fetch do resultado mensal (ano corrente) para a curva de saldo ─────
+    useEffect(() => {
+        axios.get(`${API}/api/dashboard/resultado/mensal?year=${anoAtual}`)
+            .then(r => setResultadoMensal((r.data.data || []).map((d: any) => ({ mes: d.mes, resultado: d.resultado }))))
+            .catch(console.error);
+    }, []);
+
     // Quando o token OAuth expira, o sync para de rodar sem avisar ninguém e a tela
     // continua mostrando dado velho com cara de dado fresco — foi assim que o
     // dashboard exibiu números de dois meses antes. Aqui a idade fica explícita.
@@ -175,6 +262,11 @@ const VistaoGeral: React.FC = () => {
     const varDespesa = despesaAnterior > 0
         ? ((despesaAtual - despesaAnterior) / despesaAnterior) * 100
         : 0;
+    const saldoPeriodo = recebidoPeriodo - despesaAtual;
+    const saldoPositivo = saldoPeriodo >= 0;
+    const saudeRecebimento = (recebidoPeriodo + (kpiBase?.totalAtraso || 0)) > 0
+        ? (recebidoPeriodo / (recebidoPeriodo + (kpiBase?.totalAtraso || 0))) * 100
+        : 100;
 
     // Incremental é feito para uso diário: passando de 1 dia já vale destacar,
     // e acima de 7 o número na tela provavelmente já não descreve a realidade.
@@ -189,7 +281,12 @@ const VistaoGeral: React.FC = () => {
 
     const qtdExcluidas = categoriasExcluidas.size;
     const periodoLabel = `${fmtDateLabel(periodoAplic.de)} – ${fmtDateLabel(periodoAplic.ate)}`;
-    const anoAnterior  = new Date(`${periodoAplic.de}T00:00:00`).getFullYear() - 1;
+
+    // ── animações de contagem (números dos cards) ──────────────────────────
+    const despesaAnim = useCountUp(despesaAtual, 900, reducedMotion || loadPeriodo);
+    const atrasoAnim  = useCountUp(kpiBase?.totalAtraso || 0, 900, reducedMotion);
+    const recebidoAnim = useCountUp(recebidoPeriodo, 900, reducedMotion || loadPeriodo);
+    const saldoAnim   = useCountUp(saldoPeriodo, 900, reducedMotion || loadPeriodo);
 
     const handlePresetChange = (novo: PresetKey) => {
         setPreset(novo);
@@ -220,6 +317,17 @@ const VistaoGeral: React.FC = () => {
             return next;
         });
 
+    // dot customizado: só o último mês ganha destaque, igual à referência.
+    const SaldoDot = (props: any) => {
+        const { cx, cy, index } = props;
+        if (index !== resultadoMensal.length - 1) return <g key={index} />;
+        return (
+            <g key={index}>
+                <circle cx={cx} cy={cy} r={5} fill="#fff" stroke="#0b6b76" strokeWidth={3} />
+            </g>
+        );
+    };
+
     // ── loading ────────────────────────────────────────────────────────────
     if (loadBase) {
         return (
@@ -232,7 +340,7 @@ const VistaoGeral: React.FC = () => {
 
     // ── render ─────────────────────────────────────────────────────────────
     return (
-        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="fade-in vg-shell">
 
             {/* Header */}
             <div>
@@ -260,13 +368,8 @@ const VistaoGeral: React.FC = () => {
                 </div>
             </div>
 
-            {/* ── Barra de Filtros ── */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)', padding: '0.875rem 1.25rem',
-                boxShadow: 'var(--shadow-sm)',
-            }}>
+            {/* ── Barra de Filtros (pílula) ── */}
+            <div className="vg-toolbar">
                 <PeriodFilterBar
                     icon={<SlidersHorizontal size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
                     label="Período"
@@ -282,8 +385,7 @@ const VistaoGeral: React.FC = () => {
                     isLoading={loadPeriodo}
                 />
 
-                {/* Separador */}
-                <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 0.25rem' }} />
+                <div className="vg-toolbar-sep" />
 
                 {/* Filtro de categorias (relativo ao card de despesa) */}
                 <div ref={catRef} style={{ position: 'relative' }}>
@@ -360,100 +462,116 @@ const VistaoGeral: React.FC = () => {
                 </div>
             </div>
 
-            {/* ── KPI Cards ── */}
-            {/* minmax com largura mínima (não 0) evita que o rótulo quebre linha
-                em janelas intermediárias: refluí pra 2 colunas antes disso acontecer. */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '1.25rem' }}>
-
-                {/* Card 1: Despesa do Período */}
-                <button onClick={() => navigate(`/despesas?de=${periodoAplic.de}&ate=${periodoAplic.ate}`)} className="kpi-card" style={cardStyle}>
-                    <div style={cardHeaderRow}>
-                        <div className="kpi-icon" style={{ background: 'var(--primary-light)' }}>
-                            <TrendingUp size={22} color="var(--primary)" />
-                        </div>
-                        {varDespesa !== 0 && (
-                            <span style={badgeStyle(varDespesa)}>
-                                {varDespesa <= 0 ? <ArrowDownRight size={12} /> : <ArrowUpRight size={12} />}
-                                {fmtPct(Math.abs(varDespesa))}
-                            </span>
-                        )}
-                    </div>
-                    <div style={cardLabel}>
-                        Despesa Acumulada
+            {/* ── Tiles compactos ── */}
+            <div className="vg-tiles">
+                <button onClick={() => navigate(`/despesas?de=${periodoAplic.de}&ate=${periodoAplic.ate}`)} className="vg-tile vg-tile--primary">
+                    <div className="vg-tile-icon"><TrendingUp size={19} color="var(--primary)" /></div>
+                    <div className="vg-tile-label">
+                        Despesa acumulada
                         {qtdExcluidas > 0 && <span style={{ color: 'var(--primary)', fontWeight: 700 }}> (-{qtdExcluidas} cat.)</span>}
                     </div>
-                    <div style={cardValue(loadPeriodo)}>
-                        {loadPeriodo ? '—' : fmt(despesaAtual)}
+                    <div className="vg-tile-value">{fmt(despesaAnim)}</div>
+                    {varDespesa !== 0 && (
+                        <span className="vg-tile-badge" style={{ color: varDespesa <= 0 ? 'var(--success)' : 'var(--danger)', background: 'rgba(255,255,255,0.6)' }}>
+                            {varDespesa <= 0 ? <ArrowDownRight size={12} /> : <ArrowUpRight size={12} />}
+                            {fmtPct(Math.abs(varDespesa))}
+                        </span>
+                    )}
+                </button>
+
+                <button onClick={() => navigate('/inadimplencia')} className="vg-tile vg-tile--danger">
+                    <div className="vg-tile-icon"><AlertTriangle size={19} color="var(--danger)" /></div>
+                    <div className="vg-tile-label">Total vencido em atraso</div>
+                    <div className="vg-tile-value">{fmt(atrasoAnim)}</div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Risco crítico (+90d): {fmt(kpiBase.riscoGrave)}</span>
+                </button>
+
+                <button onClick={() => navigate('/evolucao')} className="vg-tile vg-tile--success">
+                    <div className="vg-tile-icon"><Landmark size={19} color="var(--success)" /></div>
+                    <div className="vg-tile-label">Receitas recebidas</div>
+                    <div className="vg-tile-value">{fmt(recebidoAnim)}</div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{periodoLabel}</span>
+                </button>
+            </div>
+
+            {/* ── Composição: saldo em destaque + curva/saúde de recebimento ── */}
+            <div className="vg-composite">
+
+                {/* Hero: saldo líquido */}
+                <div className="vg-hero">
+                    <div>
+                        <h3>{saldoPositivo ? 'Período no azul' : 'Atenção ao caixa'}</h3>
+                        <p>
+                            {saldoPositivo
+                                ? `As receitas recebidas superaram as despesas em ${periodoLabel}. Saldo acumulado disponível para reserva ou distribuição.`
+                                : `As despesas superaram as receitas recebidas em ${periodoLabel}. Vale revisar categorias de custo ou acelerar o recebimento em atraso.`}
+                        </p>
                     </div>
-                    <div style={cardSubLabel}>
-                        {periodoLabel}
-                        {despesaAnterior > 0 && (
-                            <span style={{ display: 'block', marginTop: 2 }}>
-                                vs. {fmt(despesaAnterior)} em {anoAnterior}
-                            </span>
+                    <button className="vg-pill-btn" onClick={() => navigate('/evolucao')}>
+                        Ver análise completa <ArrowRight size={15} />
+                    </button>
+                    <div className="vg-gradient-card">
+                        <div className="vg-gradient-label">Saldo líquido do período</div>
+                        <div className="vg-gradient-value" style={{ color: saldoPositivo ? '#fff' : '#ffd9d9' }}>
+                            {saldoPositivo ? '+' : ''}{fmt(saldoAnim)}
+                        </div>
+                        <div className="vg-gradient-foot">Receitas − Despesas · {periodoLabel}</div>
+                    </div>
+                </div>
+
+                {/* Coluna direita: curva de saldo mensal + saúde de recebimento */}
+                <div className="vg-side-stack">
+                    <div className="vg-chart-card">
+                        <h3>Saldo mensal — {anoAtual}</h3>
+                        <p>Receitas − despesas operacionais, mês a mês</p>
+                        {resultadoMensal.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={150}>
+                                <AreaChart data={resultadoMensal} margin={{ top: 4, right: 8, left: -22, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="vgSaldoFill" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#0b6b76" stopOpacity={0.3} />
+                                            <stop offset="100%" stopColor="#0b6b76" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#8b969a' }} axisLine={false} tickLine={false} />
+                                    <YAxis hide domain={['dataMin - 5000', 'dataMax + 5000']} />
+                                    <Tooltip formatter={(v?: number) => v !== undefined ? fmt(v) : ''} contentStyle={{ borderRadius: 10, border: '1px solid #dde6e6', fontSize: 12 }} />
+                                    <Area
+                                        type="monotone" dataKey="resultado" stroke="#0b6b76" strokeWidth={2.5}
+                                        fill="url(#vgSaldoFill)" dot={SaldoDot}
+                                        isAnimationActive={!reducedMotion} animationDuration={900} animationEasing="ease-out"
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div style={{ height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-subtle)', fontSize: '0.8125rem' }}>
+                                Sem dados suficientes para a curva.
+                            </div>
                         )}
                     </div>
-                </button>
 
-                {/* Card 2: Total Vencido em Atraso */}
-                <button onClick={() => navigate('/inadimplencia')} className="kpi-card" style={cardStyle}>
-                    <div style={cardHeaderRow}>
-                        <div className="kpi-icon" style={{ background: 'var(--danger-light)' }}>
-                            <AlertTriangle size={22} color="var(--danger)" />
+                    <div className="vg-ring-card">
+                        <Ring pct={saudeRecebimento} reduced={reducedMotion} />
+                        <div>
+                            <div className="vg-ring-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <ShieldCheck size={14} /> SAÚDE DE RECEBIMENTO
+                            </div>
+                            <div className="vg-ring-desc">
+                                {saudeRecebimento >= 85 ? 'Carteira saudável' : saudeRecebimento >= 60 ? 'Atenção moderada' : 'Risco elevado'}
+                            </div>
+                            <div style={{ fontSize: '0.8125rem', opacity: 0.75, marginTop: 4 }}>
+                                {fmt(recebidoPeriodo)} recebido vs. {fmt(kpiBase.totalAtraso)} em atraso
+                            </div>
                         </div>
                     </div>
-                    <div style={cardLabel}>Total Vencido em Atraso</div>
-                    <div style={cardValue(false)}>{fmt(kpiBase.totalAtraso)}</div>
-                    <div style={cardSubLabel}>
-                        Risco crítico (+90d): {fmt(kpiBase.riscoGrave)}
-                        <span style={{ display: 'block', marginTop: 2 }}>Vencimento em {periodoLabel}</span>
-                    </div>
-                </button>
-
-                {/* Card 3: Recebido no Período */}
-                <button onClick={() => navigate('/evolucao')} className="kpi-card" style={cardStyle}>
-                    <div style={cardHeaderRow}>
-                        <div className="kpi-icon" style={{ background: 'var(--success-light)' }}>
-                            <Landmark size={22} color="var(--success)" />
-                        </div>
-                    </div>
-                    <div style={cardLabel}>Receitas Recebidas</div>
-                    <div style={cardValue(loadPeriodo)}>
-                        {loadPeriodo ? '—' : fmt(recebidoPeriodo)}
-                    </div>
-                    <div style={cardSubLabel}>{periodoLabel}</div>
-                </button>
-
-                {/* Card 4: Saldo Líquido do Período */}
-                <button onClick={() => navigate('/evolucao')} className="kpi-card" style={cardStyle}>
-                    {(() => {
-                        const saldo = recebidoPeriodo - despesaAtual;
-                        const positivo = saldo >= 0;
-                        return (
-                            <>
-                                <div style={cardHeaderRow}>
-                                    <div className="kpi-icon" style={{ background: positivo ? 'var(--success-light)' : 'var(--danger-light)' }}>
-                                        {positivo
-                                            ? <TrendingDown size={22} color="var(--success)" />
-                                            : <TrendingDown size={22} color="var(--danger)" />}
-                                    </div>
-                                </div>
-                                <div style={cardLabel}>Saldo Líquido</div>
-                                <div style={{ ...cardValue(loadPeriodo), color: loadPeriodo ? 'var(--text-main)' : (positivo ? 'var(--success)' : 'var(--danger)') }}>
-                                    {loadPeriodo ? '—' : fmt(saldo)}
-                                </div>
-                                <div style={cardSubLabel}>Receitas − Despesas · {periodoLabel}</div>
-                            </>
-                        );
-                    })()}
-                </button>
+                </div>
             </div>
 
             {/* ── Bottom row ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1.25rem' }}>
 
                 {/* Maiores Devedores */}
-                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem', boxShadow: 'var(--shadow-sm)' }}>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '20px', padding: '1.75rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <div>
                             <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-main)' }}>Maiores Devedores</h3>
@@ -470,8 +588,8 @@ const VistaoGeral: React.FC = () => {
                             const pct = kpiBase.totalAtraso > 0 ? (d.valorDevido / kpiBase.totalAtraso) * 100 : 0;
                             const isDiversos = d.cliente === 'Diversos';
                             return (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-subtle)', width: 18, textAlign: 'right', flexShrink: 0, fontWeight: 600 }}>{i + 1}</span>
+                                <div key={i} className="vg-debtor-row">
+                                    <div className={`vg-avatar${isDiversos ? ' vg-avatar--muted' : ''}`}>{initials(d.cliente)}</div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                                             <span style={{ fontSize: '0.9375rem', fontWeight: 500, color: isDiversos ? 'var(--text-muted)' : 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%', fontStyle: isDiversos ? 'italic' : 'normal' }}>
@@ -490,7 +608,7 @@ const VistaoGeral: React.FC = () => {
                 </div>
 
                 {/* Módulos */}
-                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem', boxShadow: 'var(--shadow-sm)' }}>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '20px', padding: '1.75rem' }}>
                     <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.5rem' }}>Módulos</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                         {[
@@ -499,12 +617,11 @@ const VistaoGeral: React.FC = () => {
                             { label: 'Análise Avançada',       desc: 'Evolução mensal, lucros e caixa',           path: '/evolucao',      color: 'var(--primary)',        bg: 'var(--primary-light)' },
                             { label: 'Sincronização',          desc: 'Atualizar dados via API Conta Azul',        path: '/importacao',    color: 'var(--brand-graphite)', bg: 'var(--background)' },
                         ].map(m => (
-                            <button key={m.path} onClick={() => navigate(m.path)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)', background: 'transparent', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
+                            <button key={m.path} onClick={() => navigate(m.path)} className="vg-module-row"
                                 onMouseEnter={e => (e.currentTarget.style.background = m.bg)}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                             >
-                                <div style={{ width: 38, height: 38, borderRadius: 8, background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <div className="vg-module-icon" style={{ background: m.bg }}>
                                     <div style={{ width: 9, height: 9, borderRadius: '50%', background: m.color }} />
                                 </div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -558,40 +675,5 @@ const btnMicroStyle: React.CSSProperties = {
     background: 'var(--background)', border: '1px solid var(--border)',
     fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer',
 };
-
-// Sobrescreve o layout em linha (ícone-ao-lado-do-texto) de .kpi-card por um
-// empilhado (ícone em cima, valor grande embaixo) — este card tem mais conteúdo
-// (badge de variação, sublabel de comparação) do que o KPI padrão das outras telas.
-const cardStyle: React.CSSProperties = {
-    display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
-};
-
-const cardHeaderRow: React.CSSProperties = {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.125rem',
-};
-
-const cardLabel: React.CSSProperties = {
-    fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)',
-    marginBottom: '0.375rem',
-};
-
-const cardValue = (dim: boolean): React.CSSProperties => ({
-    fontFamily: 'var(--font-display)',
-    fontSize: '1.625rem', fontWeight: 800, color: dim ? 'var(--text-subtle)' : 'var(--text-main)',
-    letterSpacing: '-0.02em', lineHeight: 1.15, fontVariantNumeric: 'tabular-nums',
-    whiteSpace: 'nowrap',
-});
-
-const cardSubLabel: React.CSSProperties = {
-    fontSize: '0.8125rem', color: 'var(--text-subtle)', marginTop: '0.5rem',
-};
-
-const badgeStyle = (delta: number): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', gap: 3,
-    fontSize: '0.8125rem', fontWeight: 700,
-    color:       delta <= 0 ? 'var(--success)' : 'var(--danger)',
-    background:  delta <= 0 ? 'var(--success-light)' : 'var(--danger-light)',
-    padding: '0.25rem 0.625rem', borderRadius: '1rem',
-});
 
 export default VistaoGeral;
