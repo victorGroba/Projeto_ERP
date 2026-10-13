@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Marca Laboratório Mattos & Mattos: petróleo + grafite, extraídos do logo. */
   --primary: #0b6b76;
