@@ -143,8 +143,10 @@ docker exec -it ca-bi-dashboard node dist/scripts/auditarContasReceber.js --appl
 
 Backup do volume antes de qualquer `--apply`:
 
+> ⚠️ O nome real do volume é prefixado pelo Docker Compose com o nome da pasta do projeto (ex.: `ca-bi-dashboard_ca-bi-data`, não `ca-bi-data`). Confirme antes com `docker volume ls | grep ca-bi-data` — usar o nome errado não dá erro, o Docker silenciosamente cria um volume novo vazio e o backup sai "sucesso" com um `.tar.gz` de poucas dezenas de bytes.
+
 ```bash
-docker run --rm -v ca-bi-data:/data -v $(pwd):/backup alpine   tar czf /backup/bi-backup-$(date +%F).tar.gz /data
+docker run --rm -v ca-bi-dashboard_ca-bi-data:/data -v $(pwd):/backup alpine   tar czf /backup/bi-backup-$(date +%F).tar.gz /data
 ```
 
 ---
@@ -155,4 +157,4 @@ docker run --rm -v ca-bi-data:/data -v $(pwd):/backup alpine   tar czf /backup/b
 
   ⚠️ **Isso já causou problema em produção:** o token expirou, o sync parou de rodar e o dashboard seguiu exibindo números de dois meses antes, sem nenhum aviso. Hoje a Visão Geral mostra um selo com a idade dos dados (verde até 1 dia, amarelo até 7, vermelho acima disso), mas o selo só avisa — quem resolve é a promoção do app para produção.
 - **Banco:** SQLite em volume. Os dados são 100% re-sincronizáveis da API, então mesmo perdendo o volume, um "Carga Completa" reconstrói tudo.
-- **Backup simples:** `docker run --rm -v ca-bi-data:/data -v $(pwd):/backup alpine tar czf /backup/bi-backup.tar.gz /data`
+- **Backup simples:** `docker run --rm -v ca-bi-dashboard_ca-bi-data:/data -v $(pwd):/backup alpine tar czf /backup/bi-backup.tar.gz /data` (confirme o nome do volume antes com `docker volume ls | grep ca-bi-data`, ver nota acima)
