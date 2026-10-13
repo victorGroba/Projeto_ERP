@@ -8,8 +8,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import PeriodFilterBar from '../components/PeriodFilterBar';
+import { usePrefersReducedMotion, useCountUp, initials, Ring, LastPointDot } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Dashboard.css';
-import './VistaoGeral.css';
 
 const API = '';
 const fmt = (v: number) =>
@@ -19,75 +20,6 @@ const fmtDateLabel = (iso: string) =>
     new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: '2-digit' });
 
 const THRESHOLD_DEVEDOR = 10_000;
-
-// ── Animação: respeita "prefers-reduced-motion" e usa só requestAnimationFrame
-// (sem lib nova — o bundle já está no limite de 500kB só com recharts/lucide). ──
-function usePrefersReducedMotion() {
-    const [reduced, setReduced] = useState(false);
-    useEffect(() => {
-        const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-        setReduced(mq.matches);
-        const handler = () => setReduced(mq.matches);
-        mq.addEventListener('change', handler);
-        return () => mq.removeEventListener('change', handler);
-    }, []);
-    return reduced;
-}
-
-function useCountUp(target: number, durationMs: number, reduced: boolean) {
-    const [value, setValue] = useState(0);
-    const prevRef = useRef(0);
-    useEffect(() => {
-        if (reduced || !Number.isFinite(target)) {
-            setValue(target);
-            prevRef.current = target;
-            return;
-        }
-        const start = prevRef.current;
-        const startTime = performance.now();
-        let raf = 0;
-        const tick = (now: number) => {
-            const t = Math.min(1, (now - startTime) / durationMs);
-            const eased = 1 - Math.pow(1 - t, 3);
-            setValue(start + (target - start) * eased);
-            if (t < 1) raf = requestAnimationFrame(tick);
-            else prevRef.current = target;
-        };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
-    }, [target, durationMs, reduced]);
-    return value;
-}
-
-const initials = (nome: string) =>
-    nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
-
-// ── Anel de progresso (bloco de destaque escuro) ─────────────────────────────
-const Ring: React.FC<{ pct: number; size?: number; reduced: boolean }> = ({ pct, size = 92, reduced }) => {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        const id = requestAnimationFrame(() => setMounted(true));
-        return () => cancelAnimationFrame(id);
-    }, []);
-    const stroke = 9;
-    const r = (size - stroke) / 2;
-    const c = 2 * Math.PI * r;
-    const clamped = Math.max(0, Math.min(100, pct));
-    const offset = c - ((mounted ? clamped : 0) / 100) * c;
-    return (
-        <div className="vg-ring-wrap" style={{ width: size, height: size }}>
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={stroke} />
-                <circle
-                    cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#3e93a0" strokeWidth={stroke}
-                    strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
-                    style={{ transition: reduced ? 'none' : 'stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)' }}
-                />
-            </svg>
-            <span className="vg-ring-pct">{clamped.toFixed(0)}%</span>
-        </div>
-    );
-};
 
 // ── Filtro de período ────────────────────────────────────────────────────────
 type PresetKey = 'this_month' | 'last_month' | 'last_3m' | 'last_6m' | 'ytd' | 'this_year' | 'last_year' | 'custom';
@@ -318,15 +250,7 @@ const VistaoGeral: React.FC = () => {
         });
 
     // dot customizado: só o último mês ganha destaque, igual à referência.
-    const SaldoDot = (props: any) => {
-        const { cx, cy, index } = props;
-        if (index !== resultadoMensal.length - 1) return <g key={index} />;
-        return (
-            <g key={index}>
-                <circle cx={cx} cy={cy} r={5} fill="#fff" stroke="#0b6b76" strokeWidth={3} />
-            </g>
-        );
-    };
+    const SaldoDot = LastPointDot(resultadoMensal.length - 1);
 
     // ── loading ────────────────────────────────────────────────────────────
     if (loadBase) {
@@ -340,7 +264,7 @@ const VistaoGeral: React.FC = () => {
 
     // ── render ─────────────────────────────────────────────────────────────
     return (
-        <div className="fade-in vg-shell">
+        <div className="fade-in su-shell">
 
             {/* Header */}
             <div>
@@ -369,7 +293,7 @@ const VistaoGeral: React.FC = () => {
             </div>
 
             {/* ── Barra de Filtros (pílula) ── */}
-            <div className="vg-toolbar">
+            <div className="su-toolbar">
                 <PeriodFilterBar
                     icon={<SlidersHorizontal size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
                     label="Período"
@@ -385,7 +309,7 @@ const VistaoGeral: React.FC = () => {
                     isLoading={loadPeriodo}
                 />
 
-                <div className="vg-toolbar-sep" />
+                <div className="su-toolbar-sep" />
 
                 {/* Filtro de categorias (relativo ao card de despesa) */}
                 <div ref={catRef} style={{ position: 'relative' }}>
@@ -463,42 +387,42 @@ const VistaoGeral: React.FC = () => {
             </div>
 
             {/* ── Tiles compactos ── */}
-            <div className="vg-tiles">
-                <button onClick={() => navigate(`/despesas?de=${periodoAplic.de}&ate=${periodoAplic.ate}`)} className="vg-tile vg-tile--primary">
-                    <div className="vg-tile-icon"><TrendingUp size={19} color="var(--primary)" /></div>
-                    <div className="vg-tile-label">
+            <div className="su-tiles">
+                <button onClick={() => navigate(`/despesas?de=${periodoAplic.de}&ate=${periodoAplic.ate}`)} className="su-tile su-tile--primary">
+                    <div className="su-tile-icon"><TrendingUp size={19} color="var(--primary)" /></div>
+                    <div className="su-tile-label">
                         Despesa acumulada
                         {qtdExcluidas > 0 && <span style={{ color: 'var(--primary)', fontWeight: 700 }}> (-{qtdExcluidas} cat.)</span>}
                     </div>
-                    <div className="vg-tile-value">{fmt(despesaAnim)}</div>
+                    <div className="su-tile-value">{fmt(despesaAnim)}</div>
                     {varDespesa !== 0 && (
-                        <span className="vg-tile-badge" style={{ color: varDespesa <= 0 ? 'var(--success)' : 'var(--danger)', background: 'rgba(255,255,255,0.6)' }}>
+                        <span className="su-tile-badge" style={{ color: varDespesa <= 0 ? 'var(--success)' : 'var(--danger)', background: 'rgba(255,255,255,0.6)' }}>
                             {varDespesa <= 0 ? <ArrowDownRight size={12} /> : <ArrowUpRight size={12} />}
                             {fmtPct(Math.abs(varDespesa))}
                         </span>
                     )}
                 </button>
 
-                <button onClick={() => navigate('/inadimplencia')} className="vg-tile vg-tile--danger">
-                    <div className="vg-tile-icon"><AlertTriangle size={19} color="var(--danger)" /></div>
-                    <div className="vg-tile-label">Total vencido em atraso</div>
-                    <div className="vg-tile-value">{fmt(atrasoAnim)}</div>
+                <button onClick={() => navigate('/inadimplencia')} className="su-tile su-tile--danger">
+                    <div className="su-tile-icon"><AlertTriangle size={19} color="var(--danger)" /></div>
+                    <div className="su-tile-label">Total vencido em atraso</div>
+                    <div className="su-tile-value">{fmt(atrasoAnim)}</div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Risco crítico (+90d): {fmt(kpiBase.riscoGrave)}</span>
                 </button>
 
-                <button onClick={() => navigate('/evolucao')} className="vg-tile vg-tile--success">
-                    <div className="vg-tile-icon"><Landmark size={19} color="var(--success)" /></div>
-                    <div className="vg-tile-label">Receitas recebidas</div>
-                    <div className="vg-tile-value">{fmt(recebidoAnim)}</div>
+                <button onClick={() => navigate('/evolucao')} className="su-tile su-tile--success">
+                    <div className="su-tile-icon"><Landmark size={19} color="var(--success)" /></div>
+                    <div className="su-tile-label">Receitas recebidas</div>
+                    <div className="su-tile-value">{fmt(recebidoAnim)}</div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{periodoLabel}</span>
                 </button>
             </div>
 
             {/* ── Composição: saldo em destaque + curva/saúde de recebimento ── */}
-            <div className="vg-composite">
+            <div className="su-composite">
 
                 {/* Hero: saldo líquido */}
-                <div className="vg-hero">
+                <div className="su-hero">
                     <div>
                         <h3>{saldoPositivo ? 'Período no azul' : 'Atenção ao caixa'}</h3>
                         <p>
@@ -507,21 +431,21 @@ const VistaoGeral: React.FC = () => {
                                 : `As despesas superaram as receitas recebidas em ${periodoLabel}. Vale revisar categorias de custo ou acelerar o recebimento em atraso.`}
                         </p>
                     </div>
-                    <button className="vg-pill-btn" onClick={() => navigate('/evolucao')}>
+                    <button className="su-pill-btn" onClick={() => navigate('/evolucao')}>
                         Ver análise completa <ArrowRight size={15} />
                     </button>
-                    <div className="vg-gradient-card">
-                        <div className="vg-gradient-label">Saldo líquido do período</div>
-                        <div className="vg-gradient-value" style={{ color: saldoPositivo ? '#fff' : '#ffd9d9' }}>
+                    <div className="su-gradient-card">
+                        <div className="su-gradient-label">Saldo líquido do período</div>
+                        <div className="su-gradient-value" style={{ color: saldoPositivo ? '#fff' : '#ffd9d9' }}>
                             {saldoPositivo ? '+' : ''}{fmt(saldoAnim)}
                         </div>
-                        <div className="vg-gradient-foot">Receitas − Despesas · {periodoLabel}</div>
+                        <div className="su-gradient-foot">Receitas − Despesas · {periodoLabel}</div>
                     </div>
                 </div>
 
                 {/* Coluna direita: curva de saldo mensal + saúde de recebimento */}
-                <div className="vg-side-stack">
-                    <div className="vg-chart-card">
+                <div className="su-side-stack">
+                    <div className="su-chart-card">
                         <h3>Saldo mensal — {anoAtual}</h3>
                         <p>Receitas − despesas operacionais, mês a mês</p>
                         {resultadoMensal.length > 0 ? (
@@ -539,7 +463,7 @@ const VistaoGeral: React.FC = () => {
                                     <Area
                                         type="monotone" dataKey="resultado" stroke="#0b6b76" strokeWidth={2.5}
                                         fill="url(#vgSaldoFill)" dot={SaldoDot}
-                                        isAnimationActive={!reducedMotion} animationDuration={900} animationEasing="ease-out"
+                                        isAnimationActive={false}
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
@@ -550,13 +474,13 @@ const VistaoGeral: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="vg-ring-card">
+                    <div className="su-ring-card">
                         <Ring pct={saudeRecebimento} reduced={reducedMotion} />
                         <div>
-                            <div className="vg-ring-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <ShieldCheck size={14} /> SAÚDE DE RECEBIMENTO
+                            <div className="su-ring-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <ShieldCheck size={14} /> Saúde de recebimento
                             </div>
-                            <div className="vg-ring-desc">
+                            <div className="su-ring-desc">
                                 {saudeRecebimento >= 85 ? 'Carteira saudável' : saudeRecebimento >= 60 ? 'Atenção moderada' : 'Risco elevado'}
                             </div>
                             <div style={{ fontSize: '0.8125rem', opacity: 0.75, marginTop: 4 }}>
@@ -588,8 +512,8 @@ const VistaoGeral: React.FC = () => {
                             const pct = kpiBase.totalAtraso > 0 ? (d.valorDevido / kpiBase.totalAtraso) * 100 : 0;
                             const isDiversos = d.cliente === 'Diversos';
                             return (
-                                <div key={i} className="vg-debtor-row">
-                                    <div className={`vg-avatar${isDiversos ? ' vg-avatar--muted' : ''}`}>{initials(d.cliente)}</div>
+                                <div key={i} className="su-row">
+                                    <div className={`su-avatar su-avatar--danger${isDiversos ? ' su-avatar--muted' : ''}`}>{initials(d.cliente)}</div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                                             <span style={{ fontSize: '0.9375rem', fontWeight: 500, color: isDiversos ? 'var(--text-muted)' : 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%', fontStyle: isDiversos ? 'italic' : 'normal' }}>
@@ -617,11 +541,11 @@ const VistaoGeral: React.FC = () => {
                             { label: 'Análise Avançada',       desc: 'Evolução mensal, lucros e caixa',           path: '/evolucao',      color: 'var(--primary)',        bg: 'var(--primary-light)' },
                             { label: 'Sincronização',          desc: 'Atualizar dados via API Conta Azul',        path: '/importacao',    color: 'var(--brand-graphite)', bg: 'var(--background)' },
                         ].map(m => (
-                            <button key={m.path} onClick={() => navigate(m.path)} className="vg-module-row"
+                            <button key={m.path} onClick={() => navigate(m.path)} className="su-row-link"
                                 onMouseEnter={e => (e.currentTarget.style.background = m.bg)}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                             >
-                                <div className="vg-module-icon" style={{ background: m.bg }}>
+                                <div className="su-row-icon" style={{ background: m.bg }}>
                                     <div style={{ width: 9, height: 9, borderRadius: '50%', background: m.color }} />
                                 </div>
                                 <div style={{ flex: 1, minWidth: 0 }}>

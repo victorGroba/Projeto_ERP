@@ -5,6 +5,8 @@ import { AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, ChevronDown,
 import PeriodFilterBar from '../components/PeriodFilterBar';
 import { COMPARISON_PRESETS, PRESETS, computeRange, fmtDateLabel, shiftYear, toISO } from '../utils/periodPresets';
 import type { PresetKey, PresetKeyB } from '../utils/periodPresets';
+import { usePrefersReducedMotion } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Clientes.css';
 
 const hoje = new Date();
@@ -78,6 +80,7 @@ const csvCell = (value: unknown) => {
 };
 
 export default function Clientes() {
+    const reducedMotion = usePrefersReducedMotion();
     const [preset, setPreset] = useState<PresetKey>('ytd');
     const [customDe, setCustomDe] = useState(PERIODO_INICIAL.de);
     const [customAte, setCustomAte] = useState(PERIODO_INICIAL.ate);
@@ -322,7 +325,7 @@ export default function Clientes() {
         URL.revokeObjectURL(url);
     };
 
-    return <div className="clientes-page fade-in">
+    return <div className="clientes-page fade-in su-shell">
         <section className="clientes-intro">
             <div><h2>Faturamento bruto por grupo</h2><p>O fechamento fiscal vem das NFS-e da prefeitura; recebido e em aberto continuam sendo atualizados pela API Conta Azul.</p></div>
             <div className="clientes-actions">
@@ -495,8 +498,8 @@ export default function Clientes() {
                                     }}
                                 />
                                 <Legend verticalAlign="top" align="right" height={28} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.78rem', color: 'var(--text-muted)' }} />
-                                <Bar dataKey="anterior" name="Período de comparação" fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} />
-                                <Bar dataKey="atual" name="Período selecionado" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                                <Bar dataKey="anterior" name="Período de comparação" fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={!reducedMotion} />
+                                <Bar dataKey="atual" name="Período selecionado" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={!reducedMotion} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import Delta from '../components/Delta';
 import ComparativoBarTable from '../components/ComparativoBarTable';
+import { usePrefersReducedMotion, useCountUp } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Dashboard.css';
 import '../styles/painel.css';
 import './RelatorioAnual.css';
@@ -91,6 +93,7 @@ const shortLabel = (de: string, ate: string) => {
 };
 
 const RelatorioAnual: React.FC = () => {
+    const reducedMotion = usePrefersReducedMotion();
     const token = localStorage.getItem('@ContaAzul:token');
 
     const [de, setDe] = useState(defaultDe);
@@ -317,8 +320,13 @@ const RelatorioAnual: React.FC = () => {
         </div>
     );
 
+    const entradasAnim    = useCountUp(data?.entradas.total.totalAtual || 0, 900, reducedMotion || isLoading);
+    const matsServAnim    = useCountUp(data ? -data.materiaisServicos.total.totalAtual : 0, 900, reducedMotion || isLoading);
+    const despesasAnim    = useCountUp(data ? -data.despesas.total.totalAtual : 0, 900, reducedMotion || isLoading);
+    const resultadoAnim   = useCountUp(data?.resultadoOperacional.totalAtual || 0, 900, reducedMotion || isLoading);
+
     return (
-        <div className="module-page rel-page">
+        <div className="fade-in su-shell">
             {/* Header */}
             <header className="res-header">
                 <div>
@@ -450,7 +458,7 @@ const RelatorioAnual: React.FC = () => {
                         <div className="rel-kpi" style={{ ['--kpi-accent' as any]: 'var(--success)' }}>
                             <span className="rel-kpi-label">Total Entradas {anoAtual}</span>
                             <div className="rel-kpi-value" style={{ color: 'var(--success)' }}>
-                                {fmt(data.entradas.total.totalAtual)}
+                                {fmt(entradasAnim)}
                             </div>
                             <div className="rel-kpi-foot">
                                 <Delta pct={data.entradas.total.variacao} inverso />
@@ -461,7 +469,7 @@ const RelatorioAnual: React.FC = () => {
                         <div className="rel-kpi" style={{ ['--kpi-accent' as any]: 'var(--danger)' }}>
                             <span className="rel-kpi-label">Total Mats/Serv {anoAtual}</span>
                             <div className="rel-kpi-value" style={{ color: 'var(--danger)' }}>
-                                {fmt(-data.materiaisServicos.total.totalAtual)}
+                                {fmt(matsServAnim)}
                             </div>
                             <div className="rel-kpi-foot">
                                 <Delta pct={data.materiaisServicos.total.variacao} />
@@ -472,7 +480,7 @@ const RelatorioAnual: React.FC = () => {
                         <div className="rel-kpi" style={{ ['--kpi-accent' as any]: 'var(--warning)' }}>
                             <span className="rel-kpi-label">Total Despesas {anoAtual}</span>
                             <div className="rel-kpi-value" style={{ color: 'var(--warning)' }}>
-                                {fmt(-data.despesas.total.totalAtual)}
+                                {fmt(despesasAnim)}
                             </div>
                             <div className="rel-kpi-foot">
                                 <Delta pct={data.despesas.total.variacao} />
@@ -483,7 +491,7 @@ const RelatorioAnual: React.FC = () => {
                         <div className="rel-kpi" style={{ ['--kpi-accent' as any]: data.resultadoOperacional.totalAtual >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                             <span className="rel-kpi-label">Resultado Operacional {anoAtual}</span>
                             <div className="rel-kpi-value" style={{ color: data.resultadoOperacional.totalAtual >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                {fmt(data.resultadoOperacional.totalAtual)}
+                                {fmt(resultadoAnim)}
                             </div>
                             <div className="rel-kpi-foot">
                                 <Delta pct={data.resultadoOperacional.variacao} inverso />

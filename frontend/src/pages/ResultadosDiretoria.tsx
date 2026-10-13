@@ -9,6 +9,8 @@ import PeriodoChips, {
     PRESETS, COMPARISON_PRESETS, computeRange, shiftYear, shortDate,
     type PresetKey, type PresetKeyB,
 } from '../components/PeriodoChips';
+import { usePrefersReducedMotion, useCountUp } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Dashboard.css';
 import '../styles/painel.css';
 import './ResultadosDiretoria.css';
@@ -24,6 +26,7 @@ const COLOR_DANGER = '#dc2626';
 
 // ── Componente principal ────────────────────────────────────────────────────
 const ResultadosDiretoria: React.FC = () => {
+    const reducedMotion = usePrefersReducedMotion();
     const token = localStorage.getItem('@ContaAzul:token');
 
     const [presetA, setPresetA] = useState<PresetKey>('this_year');
@@ -118,8 +121,12 @@ const ResultadosDiretoria: React.FC = () => {
     const escala = (maiorCategoria?.valorB || 0) >= 10_000 ? 1000 : 1;
     const unidade = escala === 1000 ? '· Valores em milhares de R$' : '· Valores em R$';
 
+    const totalAtualAnim    = useCountUp(totalAtual, 900, reducedMotion || isLoading);
+    const totalAnteriorAnim = useCountUp(totalAnterior, 900, reducedMotion || isLoading);
+    const varRSAnim         = useCountUp(varRS, 900, reducedMotion || isLoading);
+
     return (
-        <div className="module-page res-page">
+        <div className="fade-in su-shell">
 
             {/* Header */}
             <header className="res-header">
@@ -168,20 +175,20 @@ const ResultadosDiretoria: React.FC = () => {
                     <div className="res-kpis">
                         <div className="res-kpi" style={{ ['--kpi-accent' as any]: COLOR_CURRENT }}>
                             <span className="res-kpi-label">Despesa total — período atual</span>
-                            <div className="res-kpi-value">{fmt(totalAtual)}</div>
+                            <div className="res-kpi-value">{fmt(totalAtualAnim)}</div>
                             <div className="res-kpi-foot">{labelA}</div>
                         </div>
 
                         <div className="res-kpi" style={{ ['--kpi-accent' as any]: COLOR_PREVIOUS }}>
                             <span className="res-kpi-label">Despesa total — comparativo</span>
-                            <div className="res-kpi-value" style={{ color: 'var(--text-muted)' }}>{fmt(totalAnterior)}</div>
+                            <div className="res-kpi-value" style={{ color: 'var(--text-muted)' }}>{fmt(totalAnteriorAnim)}</div>
                             <div className="res-kpi-foot">{labelB}</div>
                         </div>
 
                         <div className="res-kpi" style={{ ['--kpi-accent' as any]: varRS > 0 ? COLOR_DANGER : COLOR_SUCCESS }}>
                             <span className="res-kpi-label">Variação no período</span>
                             <div className="res-kpi-value" style={{ color: varRS > 0 ? COLOR_DANGER : COLOR_SUCCESS }}>
-                                {varRS > 0 ? '+' : ''}{fmt(varRS)}
+                                {varRS > 0 ? '+' : ''}{fmt(varRSAnim)}
                             </div>
                             <div className="res-kpi-foot">
                                 <Delta pct={varPct} />

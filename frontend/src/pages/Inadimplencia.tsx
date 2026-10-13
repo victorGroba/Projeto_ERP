@@ -3,8 +3,10 @@ import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import {
     AlertCircle, CheckCircle2, ShieldAlert, ChevronDown, ChevronRight,
-    GitCompare, BarChart2, User, Users, Loader2,
+    GitCompare, BarChart2, User, Users, Loader2, ShieldQuestion,
 } from 'lucide-react';
+import { usePrefersReducedMotion, useCountUp, Ring } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Dashboard.css';
 
 const AGING_COLORS = ['#3e93a0', '#f59e0b', '#f97316', '#dc2626', '#7f1d1d'];
@@ -17,6 +19,7 @@ const hojeISO  = new Date().toISOString().split('T')[0];
 // ─────────────────────────────────────────────────────────────────────────────
 
 const Inadimplencia: React.FC = () => {
+    const reducedMotion = usePrefersReducedMotion();
     const token = localStorage.getItem('@ContaAzul:token');
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -121,51 +124,58 @@ const Inadimplencia: React.FC = () => {
 
     const percentVencido = totalAtraso / (totalAtraso + aVencer) * 100 || 0;
     const riscoMaisde90  = agingData.find(d => d.name === 'Mais de 90 dias')?.value || 0;
+    const saudeCarteira  = 100 - percentVencido;
+
+    const totalAtrasoAnim = useCountUp(totalAtraso, 900, reducedMotion || isLoading);
+    const aVencerAnim      = useCountUp(aVencer, 900, reducedMotion || isLoading);
+    const riscoAnim        = useCountUp(riscoMaisde90, 900, reducedMotion || isLoading);
 
     // ── render ────────────────────────────────────────────────────────────
     return (
-        <div className="module-page fade-in">
+        <div className="fade-in su-shell">
 
             {/* ── Header ── */}
-            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                    <h2>Risco e Inadimplência</h2>
-                    <p>Monitoramento de atrasos, devedores e carteira de risco</p>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    {/* Toggle modo */}
-                    <div className="segmented-control">
-                        {([['analise', BarChart2, 'Análise'], ['comparativo', GitCompare, 'A × B']] as const).map(([m, Icon, label]) => (
-                            <button key={m} onClick={() => setMode(m)} className={mode === m ? 'active' : ''}>
-                                <Icon size={13} /> {label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Threshold */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600 }}>Mín.:</span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>R$</span>
-                        <input type="number" value={thresholdInput}
-                            onChange={e => setThresholdInput(e.target.value)}
-                            onBlur={e  => commitThreshold(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && commitThreshold(thresholdInput)}
-                            className="date-input"
-                            style={{ width: '86px', textAlign: 'right', fontWeight: 600, cursor: 'text' }}
-                        />
-                    </div>
-
-                    {/* Seletor de ano (só no modo análise) */}
-                    {mode === 'analise' && (
-                        <select value={year} onChange={e => { setYear(Number(e.target.value)); setDevedoresDetalhe([]); }} className="select">
-                            <option value={anoAtual - 1}>{anoAtual - 1}</option>
-                            <option value={anoAtual}>{anoAtual}</option>
-                            <option value={anoAtual + 1}>{anoAtual + 1}</option>
-                        </select>
-                    )}
+                    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>Risco e Inadimplência</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.375rem' }}>Monitoramento de atrasos, devedores e carteira de risco</p>
                 </div>
             </header>
+
+            <div className="su-toolbar">
+                {/* Toggle modo */}
+                <div className="segmented-control">
+                    {([['analise', BarChart2, 'Análise'], ['comparativo', GitCompare, 'A × B']] as const).map(([m, Icon, label]) => (
+                        <button key={m} onClick={() => setMode(m)} className={mode === m ? 'active' : ''}>
+                            <Icon size={13} /> {label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="su-toolbar-sep" />
+
+                {/* Threshold */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600 }}>Mín.:</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>R$</span>
+                    <input type="number" value={thresholdInput}
+                        onChange={e => setThresholdInput(e.target.value)}
+                        onBlur={e  => commitThreshold(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && commitThreshold(thresholdInput)}
+                        className="date-input"
+                        style={{ width: '86px', textAlign: 'right', fontWeight: 600, cursor: 'text' }}
+                    />
+                </div>
+
+                {/* Seletor de ano (só no modo análise) */}
+                {mode === 'analise' && (
+                    <select value={year} onChange={e => { setYear(Number(e.target.value)); setDevedoresDetalhe([]); }} className="select">
+                        <option value={anoAtual - 1}>{anoAtual - 1}</option>
+                        <option value={anoAtual}>{anoAtual}</option>
+                        <option value={anoAtual + 1}>{anoAtual + 1}</option>
+                    </select>
+                )}
+            </div>
 
             {/* ══════════════════════════════════════════════════════════════
                 MODO ANÁLISE
@@ -174,44 +184,35 @@ const Inadimplencia: React.FC = () => {
                 isLoading ? <LoadingState label="Processando carteira de Recebíveis..." /> : (
                 <>
                     {/* KPIs */}
-                    <div className="metrics-grid">
-                        <div className="kpi-card danger">
-                            <div className="kpi-icon" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}><AlertCircle size={28} /></div>
-                            <div className="kpi-content">
-                                <h4>Total Vencido em Atraso</h4>
-                                <h2 style={{ color: 'var(--danger)' }}>{fmt(totalAtraso)}</h2>
-                            </div>
+                    <div className="su-tiles">
+                        <div className="su-tile su-tile--danger">
+                            <div className="su-tile-icon"><AlertCircle size={19} color="var(--danger)" /></div>
+                            <div className="su-tile-label">Total vencido em atraso</div>
+                            <div className="su-tile-value" style={{ color: 'var(--danger)' }}>{fmt(totalAtrasoAnim)}</div>
                         </div>
-                        <div className="kpi-card highlight">
-                            <div className="kpi-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}><CheckCircle2 size={28} /></div>
-                            <div className="kpi-content">
-                                <h4>A Vencer (Saudável)</h4>
-                                <h2>{fmt(aVencer)}</h2>
-                            </div>
+                        <div className="su-tile su-tile--success">
+                            <div className="su-tile-icon"><CheckCircle2 size={19} color="var(--success)" /></div>
+                            <div className="su-tile-label">A vencer (saudável)</div>
+                            <div className="su-tile-value">{fmt(aVencerAnim)}</div>
                         </div>
-                        <div className="kpi-card warning">
-                            <div className="kpi-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}><ShieldAlert size={28} /></div>
-                            <div className="kpi-content">
-                                <h4>Risco Crítico (&gt; 90 dias)</h4>
-                                <h2 style={{ color: 'var(--warning)' }}>{fmt(riscoMaisde90)}</h2>
-                                <span style={{ display: 'inline-block', marginTop: '0.25rem', padding: '0.15rem 0.6rem', borderRadius: '2rem', fontSize: '0.75rem', fontWeight: 700, background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                                    Taxa Inadimplência: {percentVencido.toFixed(1)}%
-                                </span>
-                            </div>
+                        <div className="su-tile su-tile--warning">
+                            <div className="su-tile-icon"><ShieldAlert size={19} color="var(--warning)" /></div>
+                            <div className="su-tile-label">Risco crítico (&gt; 90 dias)</div>
+                            <div className="su-tile-value" style={{ color: 'var(--warning)' }}>{fmt(riscoAnim)}</div>
                         </div>
                     </div>
 
-                    {/* Gráficos */}
-                    <div className="charts-grid" style={{ gridTemplateColumns: 'minmax(320px, 1fr) 2fr', marginBottom: '1.5rem' }}>
-                        {/* Pie */}
-                        <div className="chart-container">
+                    {/* Idade da dívida + saúde da carteira */}
+                    <div className="su-composite" style={{ gridTemplateColumns: 'minmax(300px, 1fr) minmax(280px, 0.8fr)' }}>
+                        <div className="su-card">
                             <h3>Idade da Dívida</h3>
                             <div style={{ height: 250, marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {agingData.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
                                             <Pie data={agingData} cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none"
-                                                label={({ percent }) => (percent || 0) > 0.05 ? `${((percent || 0) * 100).toFixed(0)}%` : ''} labelLine={false}>
+                                                label={({ percent }) => (percent || 0) > 0.05 ? `${((percent || 0) * 100).toFixed(0)}%` : ''} labelLine={false}
+                                                isAnimationActive={false}>
                                                 {agingData.map((_e, i) => <Cell key={i} fill={AGING_COLORS[i % AGING_COLORS.length]} />)}
                                             </Pie>
                                             <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: 12, color: 'var(--text-main)' }} />
@@ -229,8 +230,18 @@ const Inadimplencia: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Tabela de devedores com toggle grupo/individual */}
-                        <div className="chart-container" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
+                        <div className="su-ring-card">
+                            <Ring pct={percentVencido} reduced={reducedMotion} color={percentVencido <= 30 ? '#3e93a0' : percentVencido <= 60 ? '#f59e0b' : '#dc2626'} />
+                            <div>
+                                <div className="su-ring-label"><ShieldQuestion size={14} /> Taxa de inadimplência</div>
+                                <div className="su-ring-desc">{saudeCarteira.toFixed(1)}% da carteira está em dia</div>
+                                <div className="su-ring-foot">{percentVencido <= 30 ? 'Carteira majoritariamente saudável' : percentVencido <= 60 ? 'Atenção moderada' : 'Vale priorizar cobrança'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tabela de devedores com toggle grupo/individual */}
+                    <div className="su-card" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
                             <div style={{ padding: '1.25rem 1.75rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
                                 <div>
                                     <h3 style={{ marginBottom: 0 }}>Devedores em Atraso</h3>
@@ -294,7 +305,6 @@ const Inadimplencia: React.FC = () => {
                                         topValor={devedoresDetalhe[0]?.valorTotal || 1}
                                       />
                             )}
-                        </div>
                     </div>
                 </>
             ))}

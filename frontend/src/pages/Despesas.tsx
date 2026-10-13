@@ -6,6 +6,8 @@ import { DollarSign, TrendingUp, TrendingDown, Layers, ChevronDown, ChevronRight
 import PeriodFilterBar from '../components/PeriodFilterBar';
 import { COMPARISON_PRESETS, PRESETS, computeRange, fmtDateLabel, shiftYear, toISO } from '../utils/periodPresets';
 import type { PresetKey, PresetKeyB } from '../utils/periodPresets';
+import { usePrefersReducedMotion, useCountUp } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Dashboard.css';
 
 const API = '';
@@ -14,6 +16,7 @@ const hoje = new Date();
 const DEFAULT_PERIODO = { de: `${hoje.getFullYear()}-01-01`, ate: toISO(hoje) };
 
 const Despesas: React.FC = () => {
+    const reducedMotion = usePrefersReducedMotion();
     const token = localStorage.getItem('@ContaAzul:token');
     const [searchParams] = useSearchParams();
     // Se a Visão Geral navegar pra cá com ?de=&ate=, respeita o período exato que o usuário
@@ -204,22 +207,21 @@ const Despesas: React.FC = () => {
         ? `${shortDate(periodoInfo.deAnterior)}–${shortDate(periodoInfo.ateAnterior)}`
         : 'Anterior';
 
+    const totalAtualAnim     = useCountUp(totalAtual, 900, reducedMotion || isLoading);
+    const totalAnteriorAnim  = useCountUp(totalAnterior, 900, reducedMotion || isLoading);
+    const evolucaoRSGeralAnim = useCountUp(evolucaoRSGeral, 900, reducedMotion || isLoading);
+
     return (
-        <div className="module-page fade-in">
-            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="fade-in su-shell">
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                    <h2>Despesas e Custos</h2>
-                    <p>Compare dois períodos quaisquer, com evolução por categoria e centro de custo</p>
+                    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>Despesas e Custos</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.375rem' }}>Compare dois períodos quaisquer, com evolução por categoria e centro de custo</p>
                 </div>
             </header>
 
             {/* ── Barra de filtro: dois períodos totalmente independentes ── */}
-            <div style={{
-                display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem',
-                boxShadow: 'var(--shadow-sm)', margin: '1rem 0 1.5rem',
-            }}>
+            <div className="su-toolbar-block">
                 <PeriodFilterBar
                     icon={<SlidersHorizontal size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
                     label="Período"
@@ -262,52 +264,37 @@ const Despesas: React.FC = () => {
                 </div>
             ) : (
                 <>
-                    <div className="metrics-grid">
-                        <div className="kpi-card highlight">
-                            <div className="kpi-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                                <DollarSign size={28} />
-                            </div>
-                            <div className="kpi-content">
-                                <h4>Despesa Total Acumulada ({periodoAtualLabel})</h4>
-                                <h2>{formatCurrency(totalAtual)}</h2>
-                            </div>
+                    <div className="su-tiles">
+                        <div className="su-tile su-tile--primary">
+                            <div className="su-tile-icon"><DollarSign size={19} color="var(--primary)" /></div>
+                            <div className="su-tile-label">Despesa total acumulada</div>
+                            <div className="su-tile-value">{formatCurrency(totalAtualAnim)}</div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{periodoAtualLabel}</span>
                         </div>
 
-                        <div className="kpi-card">
-                            <div className="kpi-icon" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                                <Layers size={28} />
-                            </div>
-                            <div className="kpi-content">
-                                <h4>Total Consolidado ({periodoAnteriorLabel || 'período anterior'})</h4>
-                                <h2 style={{ fontSize: '1.4rem', color: 'var(--text-muted)' }}>{formatCurrency(totalAnterior)}</h2>
-                            </div>
+                        <div className="su-tile su-tile--neutral">
+                            <div className="su-tile-icon"><Layers size={19} color="var(--text-muted)" /></div>
+                            <div className="su-tile-label">Total consolidado (referência)</div>
+                            <div className="su-tile-value" style={{ color: 'var(--text-muted)' }}>{formatCurrency(totalAnteriorAnim)}</div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{periodoAnteriorLabel || 'período anterior'}</span>
                         </div>
 
-                        <div className="kpi-card">
-                            <div className="kpi-icon" style={{ background: evolucaoPercentGeral <= 0 ? 'var(--success-light)' : 'var(--danger-light)', color: evolucaoPercentGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                {evolucaoPercentGeral <= 0 ? <TrendingDown size={28} /> : <TrendingUp size={28} />}
+                        <div className={`su-tile ${evolucaoPercentGeral <= 0 ? 'su-tile--success' : 'su-tile--danger'}`}>
+                            <div className="su-tile-icon">
+                                {evolucaoPercentGeral <= 0 ? <TrendingDown size={19} color="var(--success)" /> : <TrendingUp size={19} color="var(--danger)" />}
                             </div>
-                            <div className="kpi-content">
-                                <div>
-                                    <h4>Variação do Período</h4>
-                                </div>
-                                <h2 style={{ color: evolucaoPercentGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                    {evolucaoRSGeral > 0 ? '+' : ''}{formatCurrency(evolucaoRSGeral)}
-                                </h2>
-                                <span style={{
-                                    display: 'inline-block', marginTop: '0.25rem', padding: '0.15rem 0.6rem',
-                                    borderRadius: '2rem', fontSize: '0.75rem', fontWeight: 700,
-                                    background: evolucaoPercentGeral <= 0 ? 'var(--success-light)' : 'var(--danger-light)',
-                                    color: evolucaoPercentGeral <= 0 ? 'var(--success)' : 'var(--danger)'
-                                }}>
-                                    {evolucaoPercentGeral > 0 ? 'Custo Inflado ' : 'Redução de '}{evolucaoPercentGeral > 0 ? '+' : ''}{evolucaoPercentGeral.toFixed(2)}%
-                                </span>
+                            <div className="su-tile-label">Variação do período</div>
+                            <div className="su-tile-value" style={{ color: evolucaoPercentGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                {evolucaoRSGeralAnim > 0 ? '+' : ''}{formatCurrency(evolucaoRSGeralAnim)}
                             </div>
+                            <span className="su-tile-badge" style={{ color: evolucaoPercentGeral <= 0 ? 'var(--success)' : 'var(--danger)', background: 'rgba(255,255,255,0.6)' }}>
+                                {evolucaoPercentGeral > 0 ? 'Custo inflado ' : 'Redução de '}{evolucaoPercentGeral > 0 ? '+' : ''}{evolucaoPercentGeral.toFixed(2)}%
+                            </span>
                         </div>
                     </div>
 
                     <div className="charts-grid" style={{ gridTemplateColumns: '1fr', marginBottom: '2rem' }}>
-                        <div className="chart-container">
+                        <div className="su-card">
                             <h3>Maiores Despesas por Categoria</h3>
                             <p style={{ margin: '0.2rem 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                                 Top 7 categorias no período, comparadas ao período de referência
@@ -335,8 +322,8 @@ const Despesas: React.FC = () => {
                                             verticalAlign="top" align="right" height={28} iconType="circle" iconSize={8}
                                             wrapperStyle={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}
                                         />
-                                        <Bar dataKey="periodoAnterior" name={periodoAnteriorShort || 'Período de referência'} fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} />
-                                        <Bar dataKey="periodoAtual" name={periodoAtualShort} fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                                        <Bar dataKey="periodoAnterior" name={periodoAnteriorShort || 'Período de referência'} fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+                                        <Bar dataKey="periodoAtual" name={periodoAtualShort} fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -344,7 +331,7 @@ const Despesas: React.FC = () => {
                     </div>
 
                     <div className="charts-grid" style={{ gridTemplateColumns: '1fr', marginBottom: '2rem' }}>
-                        <div className="chart-container">
+                        <div className="su-card">
                             <h3>Despesas por Centro de Custo</h3>
                             <p style={{ margin: '0.2rem 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                                 Todos os setores no período, do maior para o menor
@@ -371,8 +358,8 @@ const Despesas: React.FC = () => {
                                             verticalAlign="top" align="right" height={28} iconType="circle" iconSize={8}
                                             wrapperStyle={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}
                                         />
-                                        <Bar dataKey="periodoAnterior" name={periodoAnteriorShort || 'Período de referência'} fill="var(--text-subtle)" radius={[0, 4, 4, 0]} maxBarSize={18} />
-                                        <Bar dataKey="periodoAtual" name={periodoAtualShort} fill="var(--primary)" radius={[0, 4, 4, 0]} maxBarSize={18} />
+                                        <Bar dataKey="periodoAnterior" name={periodoAnteriorShort || 'Período de referência'} fill="var(--text-subtle)" radius={[0, 4, 4, 0]} maxBarSize={18} isAnimationActive={false} />
+                                        <Bar dataKey="periodoAtual" name={periodoAtualShort} fill="var(--primary)" radius={[0, 4, 4, 0]} maxBarSize={18} isAnimationActive={false} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -381,7 +368,7 @@ const Despesas: React.FC = () => {
 
                     {/* ── Matriz de Alocação por Centro de Custo ── */}
                     {detalheData.length > 0 && (
-                        <div className="chart-container" style={{ padding: 0 }}>
+                        <div className="su-card" style={{ padding: 0 }}>
                             {/* Header */}
                             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
                                 <div>
@@ -499,7 +486,7 @@ const Despesas: React.FC = () => {
                         </div>
                     )}
                     {detalheData.length === 0 && (
-                        <div className="chart-container" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                        <div className="su-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                             O robô não encontrou dados para esta Carga Matricial. Importe um CSV ou ajuste o período.
                         </div>
                     )}

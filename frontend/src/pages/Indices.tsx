@@ -12,6 +12,8 @@ import PeriodoChips, {
     PRESETS, COMPARISON_PRESETS, computeRange, shiftYear, shortDate,
     type PresetKey, type PresetKeyB,
 } from '../components/PeriodoChips';
+import { usePrefersReducedMotion, useCountUp } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Dashboard.css';
 import '../styles/painel.css';
 import './Indices.css';
@@ -132,6 +134,7 @@ const SerieTooltip = ({ active, payload, label }: any) => {
 
 // ── Página ──────────────────────────────────────────────────────────────────
 const Indices: React.FC = () => {
+    const reducedMotion = usePrefersReducedMotion();
     const token = localStorage.getItem('@ContaAzul:token');
 
     const [presetA, setPresetA] = useState<PresetKey>('ytd');
@@ -211,8 +214,13 @@ const Indices: React.FC = () => {
     const maiorEconomia = Math.max(1, ...(g?.economias || []).map((o: any) => Math.abs(o.deltaRS)));
     const maiorFornecedor = Math.max(1, ...(g?.fornecedores?.top || []).map((f: any) => f.valorB));
 
+    const despesaAnim    = useCountUp(g?.despesaB || 0, 900, reducedMotion || isLoading);
+    const receitaAnim    = useCountUp(g?.receitaB || 0, 900, reducedMotion || isLoading);
+    const resultadoAnim  = useCountUp(g?.resultadoB || 0, 900, reducedMotion || isLoading);
+    const runRateAnim    = useCountUp(g?.runRate || 0, 900, reducedMotion || isLoading);
+
     return (
-        <div className="module-page ind-page">
+        <div className="fade-in su-shell ind-page">
 
             <header className="res-header">
                 <div>
@@ -255,7 +263,7 @@ const Indices: React.FC = () => {
                     <div className="res-kpis">
                         <div className="res-kpi" style={{ ['--kpi-accent' as any]: COR_DESPESA }}>
                             <span className="res-kpi-label">Despesa do período</span>
-                            <div className="res-kpi-value">{fmt(g.despesaB)}</div>
+                            <div className="res-kpi-value">{fmt(despesaAnim)}</div>
                             <div className="res-kpi-foot">
                                 <Delta pct={g.variacao} />
                                 <span>{g.deltaRS >= 0 ? '+' : ''}{fmtCurto(g.deltaRS)} vs anterior</span>
@@ -264,7 +272,7 @@ const Indices: React.FC = () => {
 
                         <div className="res-kpi" style={{ ['--kpi-accent' as any]: COR_RECEITA }}>
                             <span className="res-kpi-label">Receita (competência)</span>
-                            <div className="res-kpi-value">{fmt(g.receitaB)}</div>
+                            <div className="res-kpi-value">{fmt(receitaAnim)}</div>
                             <div className="res-kpi-foot">
                                 <Delta pct={g.receitaA > 0 ? ((g.receitaB - g.receitaA) / g.receitaA) * 100 : null} inverso />
                                 <span>vs {fmtCurto(g.receitaA)}</span>
@@ -274,7 +282,7 @@ const Indices: React.FC = () => {
                         <div className="res-kpi" style={{ ['--kpi-accent' as any]: g.resultadoB >= 0 ? COR_RECEITA : COR_ALERTA }}>
                             <span className="res-kpi-label">Resultado e margem</span>
                             <div className="res-kpi-value" style={{ color: g.resultadoB >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                {fmt(g.resultadoB)}
+                                {fmt(resultadoAnim)}
                             </div>
                             <div className="res-kpi-foot">
                                 Margem {fmtPct(g.margem)} · cobertura {fmtNum(g.cobertura, 2)}×
@@ -283,7 +291,7 @@ const Indices: React.FC = () => {
 
                         <div className="res-kpi" style={{ ['--kpi-accent' as any]: '#7c3aed' }}>
                             <span className="res-kpi-label">Run-rate mensal</span>
-                            <div className="res-kpi-value">{fmt(g.runRate)}</div>
+                            <div className="res-kpi-value">{fmt(runRateAnim)}</div>
                             <div className="res-kpi-foot">
                                 Projeção 12m: {fmtCurto(g.projecaoAnual)}
                             </div>
@@ -522,8 +530,8 @@ const Indices: React.FC = () => {
                                             tick={{ fill: 'var(--text-subtle)', fontSize: 11 }} width={70}
                                         />
                                         <Tooltip content={<SerieTooltip />} cursor={{ fill: 'var(--surface-hover)' }} />
-                                        <Bar dataKey="despesa" fill={COR_DESPESA} radius={[3, 3, 0, 0]} maxBarSize={38} />
-                                        <Line type="monotone" dataKey="receita" stroke={COR_RECEITA} strokeWidth={2} dot={{ r: 3 }} />
+                                        <Bar dataKey="despesa" fill={COR_DESPESA} radius={[3, 3, 0, 0]} maxBarSize={38} isAnimationActive={false} />
+                                        <Line type="monotone" dataKey="receita" stroke={COR_RECEITA} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </div>

@@ -1,10 +1,9 @@
-/* ── Piloto visual: Visão Geral ───────────────────────────────────────────
-   Traduz a linguagem "soft UI" de referência (cartão flutuante, mistura de
-   superfícies tintadas e brancas, bloco de destaque em gradiente, anel de
-   progresso, curva suave) para a marca Mattos & Mattos — petróleo/grafite,
-   sem lavanda/roxo. Escopo: somente esta página. */
+/* ── Redesign "soft UI" (piloto validado na Visão Geral, propagado pro resto
+   do sistema) — cartão flutuante, mistura de superfícies tintadas e brancas,
+   bloco de destaque em gradiente, anel de progresso, curvas suaves.
+   Paleta Mattos & Mattos (petróleo/grafite/branco) — sem lavanda/roxo. ────── */
 
-.vg-shell {
+.su-shell {
   background: var(--surface);
   border-radius: 28px;
   box-shadow: var(--shadow-lg);
@@ -14,8 +13,8 @@
   gap: 1.75rem;
 }
 
-/* ── Barra de período em formato pílula ── */
-.vg-toolbar {
+/* ── Barra de filtros/ações em formato pílula ── */
+.su-toolbar {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -25,21 +24,32 @@
   padding: 0.625rem 1.25rem;
 }
 
-.vg-toolbar-sep {
+.su-toolbar-sep {
   width: 1px;
   height: 20px;
   background: var(--border-strong);
   margin: 0 0.125rem;
 }
 
-/* ── Tiles compactos (Despesa / Atraso / Recebido) ── */
-.vg-tiles {
+/* Variante pra painéis de filtro com múltiplas linhas (período + comparação):
+   pílula fica estranha numa faixa alta, então usa radius grande em vez de 999px. */
+.su-toolbar-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--background);
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+}
+
+/* ── Tiles compactos de KPI ── */
+.su-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 1rem;
 }
 
-.vg-tile {
+.su-tile {
   border-radius: 20px;
   padding: 1.25rem 1.375rem;
   border: none;
@@ -49,18 +59,22 @@
   flex-direction: column;
   gap: 0.75rem;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
+  min-width: 0;
 }
 
-.vg-tile:hover {
+.su-tile:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
-.vg-tile--primary { background: var(--primary-light); }
-.vg-tile--danger  { background: var(--danger-light); }
-.vg-tile--success { background: var(--success-light); }
+.su-tile--primary { background: var(--primary-light); }
+.su-tile--danger  { background: var(--danger-light); }
+.su-tile--success { background: var(--success-light); }
+.su-tile--warning { background: var(--warning-light); }
+.su-tile--neutral { background: var(--background); }
+.su-tile--accent  { background: #f5f0ff; }
 
-.vg-tile-icon {
+.su-tile-icon {
   width: 38px;
   height: 38px;
   border-radius: 12px;
@@ -71,13 +85,13 @@
   flex-shrink: 0;
 }
 
-.vg-tile-label {
+.su-tile-label {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
-.vg-tile-value {
+.su-tile-value {
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 800;
@@ -87,7 +101,7 @@
   white-space: nowrap;
 }
 
-.vg-tile-badge {
+.su-tile-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -99,14 +113,14 @@
 }
 
 /* ── Linha composta: hero + gráfico/anel ── */
-.vg-composite {
+.su-composite {
   display: grid;
   grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.1fr);
   gap: 1.25rem;
   align-items: stretch;
 }
 
-.vg-hero {
+.su-hero {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -116,7 +130,7 @@
   gap: 1.25rem;
 }
 
-.vg-hero h3 {
+.su-hero h3 {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-main);
@@ -124,13 +138,13 @@
   margin-bottom: 0.375rem;
 }
 
-.vg-hero p {
+.su-hero p {
   font-size: 0.9375rem;
   color: var(--text-muted);
   line-height: 1.55;
 }
 
-.vg-pill-btn {
+.su-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -146,12 +160,12 @@
   transition: background 0.15s, transform 0.15s;
 }
 
-.vg-pill-btn:hover {
+.su-pill-btn:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
 }
 
-.vg-gradient-card {
+.su-gradient-card {
   position: relative;
   overflow: hidden;
   border-radius: 18px;
@@ -161,7 +175,7 @@
   margin-top: auto;
 }
 
-.vg-gradient-card::after {
+.su-gradient-card::after {
   content: '';
   position: absolute;
   top: -60px;
@@ -173,13 +187,13 @@
   pointer-events: none;
 }
 
-.vg-gradient-label {
+.su-gradient-label {
   font-size: 0.8125rem;
   font-weight: 600;
   opacity: 0.85;
 }
 
-.vg-gradient-value {
+.su-gradient-value {
   font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 800;
@@ -189,41 +203,41 @@
   position: relative;
 }
 
-.vg-gradient-foot {
+.su-gradient-foot {
   font-size: 0.8125rem;
   opacity: 0.8;
   margin-top: 0.375rem;
   position: relative;
 }
 
-/* ── Coluna direita: gráfico + anel ── */
-.vg-side-stack {
+/* ── Coluna lateral empilhada (gráfico + anel, ou outras combinações) ── */
+.su-side-stack {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
-.vg-chart-card {
+.su-chart-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
   padding: 1.5rem 1.5rem 0.75rem;
 }
 
-.vg-chart-card h3 {
+.su-chart-card h3 {
   font-size: 0.9375rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
-.vg-chart-card p {
+.su-chart-card p {
   font-size: 0.8125rem;
   color: var(--text-muted);
   margin-top: 0.125rem;
   margin-bottom: 0.5rem;
 }
 
-.vg-ring-card {
+.su-ring-card {
   background: var(--text-main);
   border-radius: 22px;
   padding: 1.5rem;
@@ -234,12 +248,12 @@
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.vg-ring-card:hover {
+.su-ring-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
 
-.vg-ring-wrap {
+.su-ring-wrap {
   position: relative;
   flex-shrink: 0;
   display: flex;
@@ -247,7 +261,7 @@
   justify-content: center;
 }
 
-.vg-ring-pct {
+.su-ring-pct {
   position: absolute;
   font-family: var(--font-display);
   font-size: 1.375rem;
@@ -255,32 +269,54 @@
   font-variant-numeric: tabular-nums;
 }
 
-.vg-ring-label {
+.su-ring-label {
   font-size: 0.8125rem;
   font-weight: 600;
   opacity: 0.75;
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.vg-ring-desc {
+.su-ring-desc {
   font-size: 0.9375rem;
   font-weight: 600;
   line-height: 1.4;
 }
 
-/* ── Lista de devedores com avatar circular ── */
-.vg-debtor-row {
+.su-ring-foot {
+  font-size: 0.8125rem;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+/* ── Cartões simples dentro do shell (substituem o shadow-sm avulso) ── */
+.su-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem;
+}
+
+.su-card h3 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+/* ── Lista com avatar circular (devedores, transações, etc.) ── */
+.su-row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-.vg-avatar {
+.su-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--danger-light);
-  color: var(--danger);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -289,13 +325,13 @@
   flex-shrink: 0;
 }
 
-.vg-avatar--muted {
-  background: var(--surface-hover);
-  color: var(--text-subtle);
-}
+.su-avatar--danger  { background: var(--danger-light);  color: var(--danger); }
+.su-avatar--success { background: var(--success-light); color: var(--success); }
+.su-avatar--primary { background: var(--primary-light); color: var(--primary); }
+.su-avatar--muted   { background: var(--surface-hover); color: var(--text-subtle); }
 
-/* ── Módulos ── */
-.vg-module-row {
+/* ── Linhas de navegação/módulos ── */
+.su-row-link {
   display: flex;
   align-items: center;
   gap: 0.875rem;
@@ -309,11 +345,11 @@
   transition: background 0.15s, transform 0.15s;
 }
 
-.vg-module-row:hover {
+.su-row-link:hover {
   transform: translateY(-1px);
 }
 
-.vg-module-icon {
+.su-row-icon {
   width: 42px;
   height: 42px;
   border-radius: 14px;
@@ -324,10 +360,10 @@
 }
 
 @media (max-width: 900px) {
-  .vg-composite {
+  .su-composite {
     grid-template-columns: 1fr;
   }
-  .vg-shell {
+  .su-shell {
     padding: 1.5rem;
     border-radius: 20px;
   }

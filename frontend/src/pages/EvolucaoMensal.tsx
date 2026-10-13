@@ -5,6 +5,8 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { TrendingUp, TrendingDown, BarChart2, PieChart as PieIcon, Landmark } from 'lucide-react';
+import { usePrefersReducedMotion, useCountUp } from '../components/softUi';
+import '../components/SoftUI.css';
 import './Dashboard.css';
 import './EvolucaoMensal.css';
 
@@ -20,6 +22,7 @@ const formatK = (v: number) => `R$ ${(v / 1000).toFixed(0)}k`;
 
 
 const EvolucaoMensal: React.FC = () => {
+    const reducedMotion = usePrefersReducedMotion();
     const token = localStorage.getItem('@ContaAzul:token');
     const [year, setYear] = useState<number>(new Date().getFullYear());
 
@@ -75,32 +78,33 @@ const EvolucaoMensal: React.FC = () => {
     const variacaoGeral = totalAnterior > 0 ? ((totalAtual - totalAnterior) / totalAnterior) * 100 : 0;
     const mediaMensal = mesesComDados > 0 ? totalAtual / mesesComDados : 0;
 
+    const totalAtualAnim    = useCountUp(totalAtual, 900, reducedMotion || isLoading);
+    const mediaMensalAnim   = useCountUp(mediaMensal, 900, reducedMotion || isLoading);
+    const totalLucrosAnim   = useCountUp(totalLucros, 900, reducedMotion || isLoading);
+    const resultadoAnoAnim  = useCountUp(resultadoAno, 900, reducedMotion || isLoading);
 
     return (
-        <div className="module-page fade-in">
-            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="fade-in su-shell">
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                    <h2>Análise Financeira Avançada</h2>
-                    <p>Evolução Mensal · Distribuição de Lucros · Caixa & Bancos</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9375rem', fontWeight: 600 }}>Período:</span>
-                    <select
-                        value={year}
-                        onChange={e => setYear(Number(e.target.value))}
-                        style={{
-                            background: 'var(--surface)', border: '1px solid var(--border)',
-                            borderRadius: '0.75rem', padding: '0.6rem 1.25rem',
-                            color: 'var(--text-main)', fontWeight: 600, outline: 'none',
-                            cursor: 'pointer', fontSize: '1rem'
-                        }}
-                    >
-                        {[year - 2, year - 1, year, year + 1].map(y => (
-                            <option key={y} value={y}>{y}</option>
-                        ))}
-                    </select>
+                    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>Análise Financeira Avançada</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.375rem' }}>Evolução mensal · distribuição de lucros · caixa & bancos</p>
                 </div>
             </header>
+
+            <div className="su-toolbar">
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.9375rem', fontWeight: 600 }}>Período:</span>
+                <select
+                    value={year}
+                    onChange={e => setYear(Number(e.target.value))}
+                    className="select"
+                    style={{ fontWeight: 600, fontSize: '0.9375rem' }}
+                >
+                    {[year - 2, year - 1, year, year + 1].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                    ))}
+                </select>
+            </div>
 
             {isLoading ? (
                 <div className="loading-state">
@@ -110,49 +114,35 @@ const EvolucaoMensal: React.FC = () => {
             ) : (
                 <>
                     {/* ── KPIs Evolução Mensal ── */}
-                    <div className="metrics-grid" style={{ marginBottom: '2rem' }}>
-                        <div className="kpi-card highlight">
-                            <div className="kpi-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                                <BarChart2 size={28} />
+                    <div className="su-tiles">
+                        <div className="su-tile su-tile--primary">
+                            <div className="su-tile-icon"><BarChart2 size={19} color="var(--primary)" /></div>
+                            <div className="su-tile-label">Total acumulado {year}</div>
+                            <div className="su-tile-value">{formatCurrency(totalAtualAnim)}</div>
+                        </div>
+                        <div className="su-tile su-tile--neutral">
+                            <div className="su-tile-icon"><BarChart2 size={19} color="var(--text-muted)" /></div>
+                            <div className="su-tile-label">Média mensal ({mesesComDados} meses)</div>
+                            <div className="su-tile-value">{formatCurrency(mediaMensalAnim)}</div>
+                        </div>
+                        <div className={`su-tile ${variacaoGeral <= 0 ? 'su-tile--success' : 'su-tile--danger'}`}>
+                            <div className="su-tile-icon">
+                                {variacaoGeral <= 0 ? <TrendingDown size={19} color="var(--success)" /> : <TrendingUp size={19} color="var(--danger)" />}
                             </div>
-                            <div className="kpi-content">
-                                <h4>Total Acumulado {year}</h4>
-                                <h2>{formatCurrency(totalAtual)}</h2>
+                            <div className="su-tile-label">Variação vs {year - 1}</div>
+                            <div className="su-tile-value" style={{ color: variacaoGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                {variacaoGeral > 0 ? '+' : ''}{variacaoGeral.toFixed(1)}%
                             </div>
                         </div>
-                        <div className="kpi-card">
-                            <div className="kpi-icon" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                                <BarChart2 size={28} />
-                            </div>
-                            <div className="kpi-content">
-                                <h4>Média Mensal ({mesesComDados} meses)</h4>
-                                <h2>{formatCurrency(mediaMensal)}</h2>
-                            </div>
-                        </div>
-                        <div className="kpi-card">
-                            <div className="kpi-icon" style={{ background: variacaoGeral <= 0 ? 'var(--success-light)' : 'var(--danger-light)', color: variacaoGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                {variacaoGeral <= 0 ? <TrendingDown size={28} /> : <TrendingUp size={28} />}
-                            </div>
-                            <div className="kpi-content">
-                                <h4>Variação vs {year - 1}</h4>
-                                <h2 style={{ color: variacaoGeral <= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                    {variacaoGeral > 0 ? '+' : ''}{variacaoGeral.toFixed(1)}%
-                                </h2>
-                            </div>
-                        </div>
-                        <div className="kpi-card">
-                            <div className="kpi-icon" style={{ background: '#faf5ff', color: '#7c3aed' }}>
-                                <PieIcon size={28} />
-                            </div>
-                            <div className="kpi-content">
-                                <h4>Distribuição de Lucros</h4>
-                                <h2 style={{ color: '#7c3aed' }}>{formatCurrency(totalLucros)}</h2>
-                            </div>
+                        <div className="su-tile su-tile--accent">
+                            <div className="su-tile-icon"><PieIcon size={19} color="#7c3aed" /></div>
+                            <div className="su-tile-label">Distribuição de lucros</div>
+                            <div className="su-tile-value" style={{ color: '#7c3aed' }}>{formatCurrency(totalLucrosAnim)}</div>
                         </div>
                     </div>
 
                     {/* ── Gráfico: Evolução Mensal Comparativa ── */}
-                    <div className="chart-container" style={{ marginBottom: '2rem' }}>
+                    <div className="su-card">
                         <div className="chart-section-header">
                             <BarChart2 size={20} />
                             <h3>Evolução Mensal Comparativa — {year} vs {year - 1}</h3>
@@ -168,18 +158,18 @@ const EvolucaoMensal: React.FC = () => {
                                         contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '12px', color: 'var(--text-main)' }}
                                     />
                                     <Legend wrapperStyle={{ paddingTop: 16 }} />
-                                    <Bar dataKey="anoAnterior" name={`${year - 1}`} fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={22} />
-                                    <Bar dataKey="anoAtual" name={`${year}`} fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                                    <Bar dataKey="anoAnterior" name={`${year - 1}`} fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+                                    <Bar dataKey="anoAtual" name={`${year}`} fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
                     {/* ── Linha 2: Lucros + Bancos ── */}
-                    <div className="charts-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '2rem' }}>
+                    <div className="charts-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
 
                         {/* Distribuição de Lucros — barras horizontais */}
-                        <div className="chart-container">
+                        <div className="su-card">
                             <div className="chart-section-header">
                                 <PieIcon size={18} />
                                 <h3>Distribuição de Lucros — {year}</h3>
@@ -219,7 +209,7 @@ const EvolucaoMensal: React.FC = () => {
                         </div>
 
                         {/* Resumo de Receitas por Status */}
-                        <div className="chart-container">
+                        <div className="su-card">
                             <div className="chart-section-header">
                                 <Landmark size={18} />
                                 <h3>Receitas por Status — {year}</h3>
@@ -266,7 +256,7 @@ const EvolucaoMensal: React.FC = () => {
                     </div>
 
                     {/* ── Resultado Financeiro Mensal ── */}
-                    <div className="chart-container" style={{ marginBottom: '2rem' }}>
+                    <div className="su-card">
                         <div className="chart-section-header" style={{ justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                                 <BarChart2 size={18} />
@@ -275,7 +265,7 @@ const EvolucaoMensal: React.FC = () => {
                             <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-subtle)' }}>Resultado do ano</div>
                                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 800, color: resultadoAno >= 0 ? 'var(--success)' : 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>
-                                    {resultadoAno >= 0 ? '+' : ''}{formatCurrency(resultadoAno)}
+                                    {resultadoAno >= 0 ? '+' : ''}{formatCurrency(resultadoAnoAnim)}
                                 </div>
                             </div>
                         </div>
@@ -290,9 +280,9 @@ const EvolucaoMensal: React.FC = () => {
                                     <YAxis tickFormatter={formatK} width={70} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
                                     <Tooltip formatter={(v: any, n: any) => [formatCurrency(Number(v)), n]} contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '10px', fontSize: '0.8125rem' }} />
                                     <Legend wrapperStyle={{ paddingTop: 12, fontSize: '0.8125rem' }} />
-                                    <Bar dataKey="receitas" name="Receitas" fill="var(--success)" radius={[4, 4, 0, 0]} maxBarSize={16} />
-                                    <Bar dataKey="despesas" name="Despesas" fill="var(--danger)" radius={[4, 4, 0, 0]} maxBarSize={16} />
-                                    <Line dataKey="resultado" name="Resultado" type="monotone" stroke="var(--primary)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--primary)' }} />
+                                    <Bar dataKey="receitas" name="Receitas" fill="var(--success)" radius={[4, 4, 0, 0]} maxBarSize={16} isAnimationActive={false} />
+                                    <Bar dataKey="despesas" name="Despesas" fill="var(--danger)" radius={[4, 4, 0, 0]} maxBarSize={16} isAnimationActive={false} />
+                                    <Line dataKey="resultado" name="Resultado" type="monotone" stroke="var(--primary)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--primary)' }} isAnimationActive={false} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
@@ -302,7 +292,7 @@ const EvolucaoMensal: React.FC = () => {
                     <div className="charts-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
 
                         {/* Receitas por Tipo */}
-                        <div className="chart-container">
+                        <div className="su-card">
                             <div className="chart-section-header">
                                 <PieIcon size={18} />
                                 <h3>Receitas por Tipo — {year}</h3>
@@ -336,7 +326,7 @@ const EvolucaoMensal: React.FC = () => {
                         </div>
 
                         {/* Outras Saídas (DRE em cascata) */}
-                        <div className="chart-container">
+                        <div className="su-card">
                             <div className="chart-section-header">
                                 <Landmark size={18} />
                                 <h3>Outras Saídas / Resultado — {year}</h3>
