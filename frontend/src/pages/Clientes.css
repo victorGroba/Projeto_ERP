@@ -7,21 +7,21 @@
 .clientes-btn.primary { color: #fff; background: var(--primary); border-color: var(--primary); }
 .clientes-btn.secondary { color: var(--text-main); background: var(--surface); }
 .clientes-btn:disabled { opacity: .5; cursor: not-allowed; }
-.clientes-btn:focus-visible, .clientes-toolbar button:focus-visible, .clientes-group-row:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 2px; }
+.clientes-btn:focus-visible, .clientes-toolbar button:focus-visible, .clientes-group-row:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 40%, white); outline-offset: 2px; }
 
-.fiscal-import { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(340px, .9fr); gap: .85rem 1.25rem; align-items: center; padding: 1rem 1.1rem; background: #f8fbff; border: 1px solid #bfdbfe; border-left: 4px solid var(--primary); border-radius: var(--radius-md); box-shadow: var(--shadow-xs); }
+.fiscal-import { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(340px, .9fr); gap: .85rem 1.25rem; align-items: center; padding: 1rem 1.1rem; background: var(--primary-light); border: 1px solid color-mix(in srgb, var(--primary) 25%, white); border-left: 4px solid var(--primary); border-radius: var(--radius-md); box-shadow: var(--shadow-xs); }
 .fiscal-import-copy { display: flex; align-items: center; gap: .75rem; min-width: 0; }
-.fiscal-icon { width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; color: #1d4ed8; background: #dbeafe; }
+.fiscal-icon { width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; color: var(--primary); background: var(--primary-light); }
 .fiscal-import h3 { margin: 0 0 .2rem; font-size: .9rem; }
 .fiscal-import p { color: var(--text-muted); font-size: .76rem; line-height: 1.45; }
 .fiscal-import-action { min-width: 0; display: grid; grid-template-columns: minmax(150px, 1fr) auto; grid-template-areas: "input button" "name button"; align-items: center; gap: .2rem .65rem; }
 .fiscal-import-action input { grid-area: input; width: 100%; color: var(--text-muted); font-size: .76rem; }
 .fiscal-import-action input::file-selector-button { margin-right: .55rem; padding: .46rem .65rem; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-main); background: var(--surface); font-weight: 600; cursor: pointer; }
 .fiscal-import-action > span { grid-area: name; overflow: hidden; color: var(--text-subtle); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
-.fiscal-import-action button { grid-area: button; min-height: 40px; padding: .6rem .8rem; display: inline-flex; align-items: center; gap: .4rem; border: 0; border-radius: var(--radius-sm); color: #fff; background: #1d4ed8; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.fiscal-import-action button { grid-area: button; min-height: 40px; padding: .6rem .8rem; display: inline-flex; align-items: center; gap: .4rem; border: 0; border-radius: var(--radius-sm); color: #fff; background: var(--primary); font-size: .78rem; font-weight: 700; cursor: pointer; }
 .fiscal-import-action button:disabled { opacity: .48; cursor: not-allowed; }
-.fiscal-import-action button:focus-visible, .fiscal-import-action input:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 2px; }
-.fiscal-history { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; padding-top: .7rem; border-top: 1px solid #dbeafe; }
+.fiscal-import-action button:focus-visible, .fiscal-import-action input:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 40%, white); outline-offset: 2px; }
+.fiscal-history { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; padding-top: .7rem; border-top: 1px solid var(--primary-light); }
 .fiscal-month { display: inline-flex; align-items: center; gap: .32rem; padding: .32rem .48rem; border: 1px solid #bbf7d0; border-radius: 6px; color: #166534; background: #f0fdf4; font-size: .67rem; }
 .fiscal-month strong { text-transform: capitalize; }
 .fiscal-coverage { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .6rem; margin-bottom: .2rem; font-size: .75rem; color: var(--text-subtle); }
@@ -31,7 +31,7 @@
 
 .clientes-toolbar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: .8rem; display: flex; gap: .75rem; align-items: center; box-shadow: var(--shadow-xs); }
 .clientes-search { min-width: 280px; flex: 1; display: flex; align-items: center; gap: .55rem; color: var(--text-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 .75rem; }
-.clientes-search:focus-within { border-color: #93c5fd; box-shadow: 0 0 0 3px #dbeafe; }
+.clientes-search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, white); }
 .clientes-search input { width: 100%; height: 38px; border: 0; outline: 0; background: transparent; color: var(--text-main); }
 .clientes-filter-toggle { min-height: 38px; padding: 0 .7rem; display: inline-flex; align-items: center; justify-content: center; gap: .38rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); background: var(--surface); font-size: .74rem; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .clientes-filter-toggle:hover { border-color: #fbbf24; color: var(--warning-hover); background: #fffbeb; }
@@ -48,7 +48,7 @@
 .clientes-summary span { color: var(--text-muted); font-size: .75rem; font-weight: 600; }
 .clientes-summary strong { font-size: 1.35rem; letter-spacing: var(--tracking-tight); }
 .clientes-summary small { grid-column: 1 / -1; color: var(--text-subtle); font-size: .72rem; }
-.clientes-summary .money { background: linear-gradient(135deg, #eff6ff, #fff); }
+.clientes-summary .money { background: linear-gradient(135deg, var(--primary-light), #fff); }
 .clientes-summary .summary-action { cursor: pointer; }
 .clientes-summary .summary-action:hover, .clientes-summary .summary-action.active { background: #fef3c7; }
 .clientes-summary .summary-action:focus-visible { position: relative; outline: 3px solid #fbbf24; outline-offset: -3px; }
@@ -138,8 +138,8 @@
 .bridge { display: flex; flex-direction: column; gap: .3rem; }
 .bridge-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(80px, 1.2fr) 88px; align-items: center; gap: .85rem; padding: .6rem .65rem; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); text-align: left; cursor: pointer; }
 .bridge-row:hover { background: var(--surface-hover); }
-.bridge-row.active { border-color: #93c5fd; background: var(--primary-light); }
-.bridge-row:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 1px; }
+.bridge-row.active { border-color: var(--primary); background: var(--primary-light); }
+.bridge-row:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 40%, white); outline-offset: 1px; }
 .bridge-label { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
 .bridge-label strong { font-size: .82rem; }
 .bridge-label small { color: var(--text-subtle); font-size: .7rem; }
@@ -174,7 +174,7 @@
 .trend-filter button { border: 0; border-radius: 6px; padding: .4rem .65rem; background: transparent; color: var(--text-muted); font-size: .74rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .trend-filter button:hover { color: var(--text-main); }
 .trend-filter button.active { background: var(--surface); color: var(--text-main); box-shadow: var(--shadow-xs); }
-.trend-filter button:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 1px; }
+.trend-filter button:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 40%, white); outline-offset: 1px; }
 
 @media (max-width: 1000px) {
   .clientes-compare { grid-template-columns: 1fr; }

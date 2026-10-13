@@ -77,7 +77,8 @@ function MainLayout() {
         <div className={`dashboard-container${collapsed ? ' sidebar-collapsed' : ''}`}>
             <aside className="sidebar">
                 <div className="logo">
-                    <span className="logo-text">C.A. BI</span>
+                    <img src="/brand/logo_mattos.png" alt="Laboratório Mattos & Mattos" className="brand-logo-full" />
+                    <img src="/favicon.ico" alt="Laboratório Mattos & Mattos" className="brand-logo-mark" />
                     <button
                         className="sidebar-toggle"
                         onClick={() => setCollapsed(c => !c)}

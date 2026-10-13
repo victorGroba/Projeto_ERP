@@ -17,8 +17,8 @@ import './ResultadosDiretoria.css';
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 // ── Paleta ──────────────────────────────────────────────────────────────────
-const COLOR_CURRENT = '#2563eb';
-const COLOR_PREVIOUS = '#cbd5e1';
+const COLOR_CURRENT = '#0b6b76';
+const COLOR_PREVIOUS = '#c3d1d1';
 const COLOR_SUCCESS = '#059669';
 const COLOR_DANGER = '#dc2626';
 

@@ -6,7 +6,7 @@ import {
 import { BarChart3, Beaker, FlaskConical, TestTube2, DollarSign, Calculator } from 'lucide-react';
 import { mockCustosEnsaio, formatCurrency, getCustoTotal } from './painelExemploMock';
 
-const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COLORS = ['#0b6b76', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 // Protótipo com valores fixos. Será substituído pelo custo calculado a partir
 // das fichas técnicas (fase 2) e pelo rateio de indiretos (fase 4).
@@ -149,7 +149,7 @@ export default function PainelExemplo() {
                 <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} />
                 <Tooltip formatter={(val: number | undefined) => formatCurrency(val ?? 0)} />
                 <Legend />
-                <Bar dataKey="custoReagente" name="Reagente (R$)" stackId="a" fill="#3b82f6" />
+                <Bar dataKey="custoReagente" name="Reagente (R$)" stackId="a" fill="#0b6b76" />
                 <Bar dataKey="custoTempo" name="Tempo Analista (R$)" stackId="a" fill="#10b981" />
                 <Bar dataKey="custoCQ" name="Controle Qualidade (R$)" stackId="a" fill="#f59e0b" />
               </BarChart>
@@ -213,7 +213,7 @@ export default function PainelExemplo() {
                 <Tooltip formatter={(val: number | undefined) => formatCurrency(val ?? 0)} />
                 <Legend />
                 <Line type="monotone" dataKey="CustoBase" name="Projeção Atual (Sem Alterações)" stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={2} />
-                <Line type="monotone" dataKey="CustoPrevisto" name="Custo Simulado (Predição)" stroke="#2563eb" strokeWidth={3} dot={{ r: 6 }} activeDot={{ r: 8 }} />
+                <Line type="monotone" dataKey="CustoPrevisto" name="Custo Simulado (Predição)" stroke="#0b6b76" strokeWidth={3} dot={{ r: 6 }} activeDot={{ r: 8 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

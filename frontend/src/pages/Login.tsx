@@ -32,9 +32,11 @@ export const Login = () => {
         <div className="login-container">
             <div className="login-card">
                 <div className="login-header">
-                    <div className="login-logo-icon">C.A.</div>
-                    <h2>Dashboard AI</h2>
-                    <p>Controle Financeiro Gerencial</p>
+                    <div className="login-logo-icon">
+                        <img src="/brand/logo_mattos.png" alt="Laboratório Mattos & Mattos" />
+                    </div>
+                    <h2>Mattos &amp; Mattos</h2>
+                    <p>Painel Financeiro Gerencial</p>
                 </div>
                 <form onSubmit={handleSubmit} className="login-form">
                     {error && <div className="login-error">{error}</div>}

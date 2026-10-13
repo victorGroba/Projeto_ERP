@@ -1,10 +1,10 @@
 /* ── Gráfico de colunas + tabela de valores alinhada (estilo planilha) ────── */
 
 .cmp {
-  --cmp-plot: 260px;
-  --cmp-cat: 48px;
-  --cmp-row: 30px;
-  --cmp-gutter: 148px;
+  --cmp-plot: 320px;
+  --cmp-cat: 56px;
+  --cmp-row: 36px;
+  --cmp-gutter: 164px;
   display: flex;
   align-items: flex-start;
   width: 100%;
@@ -30,7 +30,7 @@
   position: absolute;
   right: 0.5rem;
   transform: translateY(50%);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-subtle);
   font-variant-numeric: tabular-nums;
@@ -45,10 +45,10 @@
 .cmp-gutter-row {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   height: var(--cmp-row);
   padding-right: 0.625rem;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
@@ -57,9 +57,9 @@
 }
 
 .cmp-gutter-row i {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 
@@ -129,10 +129,10 @@
 }
 
 .cmp-bar {
-  width: 40%;
-  max-width: 26px;
-  min-width: 6px;
-  border-radius: 2px 2px 0 0;
+  width: 42%;
+  max-width: 34px;
+  min-width: 8px;
+  border-radius: 4px 4px 0 0;
   transition: filter 0.12s;
 }
 
@@ -146,9 +146,9 @@
   justify-content: center;
   text-align: center;
   padding: 0.25rem 0.25rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.2;
   color: var(--text-main);
   border-bottom: 1px solid var(--border);
   border-left: 1px solid var(--border);
@@ -164,7 +164,7 @@
   align-items: center;
   justify-content: flex-end;
   padding: 0 0.4375rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-main);
   font-variant-numeric: tabular-nums;

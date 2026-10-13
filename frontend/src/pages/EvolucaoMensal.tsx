@@ -10,7 +10,7 @@ import './EvolucaoMensal.css';
 
 const API = '/api/dashboard';
 
-const COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706', '#0891b2', '#dc2626', '#9333ea', '#0f766e'];
+const COLORS = ['#0b6b76', '#7c3aed', '#059669', '#d97706', '#0891b2', '#dc2626', '#9333ea', '#5b6268'];
 
 const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);

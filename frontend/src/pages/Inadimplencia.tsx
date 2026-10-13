@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import './Dashboard.css';
 
-const AGING_COLORS = ['#60a5fa', '#f59e0b', '#f97316', '#dc2626', '#7f1d1d'];
+const AGING_COLORS = ['#3e93a0', '#f59e0b', '#f97316', '#dc2626', '#7f1d1d'];
 const fmt  = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 const fmtS = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
 
@@ -263,7 +263,7 @@ const Inadimplencia: React.FC = () => {
                                                 <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                                                     <td style={{ padding: '0.875rem 1.75rem', color: 'var(--text-main)', fontSize: '0.9375rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                                                         {dev.cliente.includes('(Grupo)')
-                                                            ? <Badge bg="#e0e7ff" color="#4f46e5">GRUPO</Badge>
+                                                            ? <Badge bg="var(--primary-light)" color="var(--primary)">GRUPO</Badge>
                                                             : <Badge bg="var(--surface-hover)" color="var(--text-muted)">CLIENTE</Badge>}
                                                         {dev.cliente.replace(' (Grupo)', '')}
                                                     </td>
@@ -308,7 +308,7 @@ const Inadimplencia: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {[
                             { label: 'Período A', de: compDeA, setDe: setCompDeA, ate: compAteA, setAte: setCompAteA, cor: '#7c3aed', bg: '#f5f3ff' },
-                            { label: 'Período B', de: compDeB, setDe: setCompDeB, ate: compAteB, setAte: setCompAteB, cor: '#2563eb', bg: '#eff6ff' },
+                            { label: 'Período B', de: compDeB, setDe: setCompDeB, ate: compAteB, setAte: setCompAteB, cor: '#0b6b76', bg: '#e6f1f1' },
                         ].map(p => (
                             <div key={p.label} style={{ background: 'var(--surface)', border: `2px solid ${p.cor}22`, borderRadius: 'var(--radius-lg)', padding: '1.125rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                                 <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: p.cor, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 76 }}>{p.label}</span>
@@ -407,7 +407,7 @@ const TabelaIndividual: React.FC<{
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left' }}>
                                 {isOpen ? <ChevronDown size={14} color="var(--primary)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
                                 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: isOpen ? 'var(--primary)' : 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dev.cliente}</span>
-                                {dev.grupo && <Badge bg="#e0e7ff" color="#4f46e5">{dev.grupo}</Badge>}
+                                {dev.grupo && <Badge bg="var(--primary-light)" color="var(--primary)">{dev.grupo}</Badge>}
                             </span>
                             <span style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem' }}>
                                 {fmtS(dev.valorTotal)}
@@ -469,7 +469,7 @@ const ComparativoView: React.FC<{ data: any; threshold: number }> = ({ data, thr
                         <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>{fmtS(vA)}</div>
                     </div>
                     <div>
-                        <div style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 700, marginBottom: 2 }}>Período B</div>
+                        <div style={{ fontSize: '0.7rem', color: '#0b6b76', fontWeight: 700, marginBottom: 2 }}>Período B</div>
                         <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>{fmtS(vB)}</div>
                     </div>
                 </div>
@@ -489,8 +489,8 @@ const ComparativoView: React.FC<{ data: any; threshold: number }> = ({ data, thr
             {/* Labels dos períodos */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {[periodoA, periodoB].map((p: any, i: number) => (
-                    <div key={i} style={{ padding: '0.625rem 1rem', background: i === 0 ? '#f5f3ff' : '#eff6ff', borderRadius: 'var(--radius-md)', borderLeft: `3px solid ${i === 0 ? '#7c3aed' : '#2563eb'}` }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: i === 0 ? '#7c3aed' : '#2563eb', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Período {i === 0 ? 'A' : 'B'}</span>
+                    <div key={i} style={{ padding: '0.625rem 1rem', background: i === 0 ? '#f5f3ff' : '#e6f1f1', borderRadius: 'var(--radius-md)', borderLeft: `3px solid ${i === 0 ? '#7c3aed' : '#0b6b76'}` }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: i === 0 ? '#7c3aed' : '#0b6b76', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Período {i === 0 ? 'A' : 'B'}</span>
                         <span style={{ fontSize: '0.875rem', color: 'var(--text-main)', marginLeft: '0.75rem' }}>{p.label}</span>
                     </div>
                 ))}
@@ -517,7 +517,7 @@ const ComparativoView: React.FC<{ data: any; threshold: number }> = ({ data, thr
                             <tr>
                                 <th style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>Devedor</th>
                                 <th style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', fontSize: '0.8125rem', color: '#7c3aed', fontWeight: 700, textAlign: 'right' }}>Período A</th>
-                                <th style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', fontSize: '0.8125rem', color: '#2563eb', fontWeight: 700, textAlign: 'right' }}>Período B</th>
+                                <th style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', fontSize: '0.8125rem', color: '#0b6b76', fontWeight: 700, textAlign: 'right' }}>Período B</th>
                                 <th style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'right' }}>Variação</th>
                             </tr>
                         </thead>
@@ -531,14 +531,14 @@ const ComparativoView: React.FC<{ data: any; threshold: number }> = ({ data, thr
                                     <tr key={idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--background)' }}>
                                         <td style={{ padding: '0.875rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             {isGrupo
-                                                ? <Badge bg="#e0e7ff" color="#4f46e5">GRUPO</Badge>
+                                                ? <Badge bg="var(--primary-light)" color="var(--primary)">GRUPO</Badge>
                                                 : <Badge bg="var(--surface-hover)" color="var(--text-muted)">CLIENTE</Badge>}
                                             <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-main)' }}>{row.cliente.replace(' (Grupo)', '')}</span>
                                         </td>
                                         <td style={{ padding: '0.875rem 1.5rem', textAlign: 'right', fontWeight: 600, color: row.valorA > 0 ? '#7c3aed' : 'var(--text-subtle)', fontSize: '0.875rem' }}>
                                             {row.valorA > 0 ? fmt(row.valorA) : '—'}
                                         </td>
-                                        <td style={{ padding: '0.875rem 1.5rem', textAlign: 'right', fontWeight: 600, color: row.valorB > 0 ? '#2563eb' : 'var(--text-subtle)', fontSize: '0.875rem' }}>
+                                        <td style={{ padding: '0.875rem 1.5rem', textAlign: 'right', fontWeight: 600, color: row.valorB > 0 ? '#0b6b76' : 'var(--text-subtle)', fontSize: '0.875rem' }}>
                                             {row.valorB > 0 ? fmt(row.valorB) : '—'}
                                         </td>
                                         <td style={{ padding: '0.875rem 1.5rem', textAlign: 'right', fontWeight: 700, color: varColor, fontSize: '0.875rem' }}>

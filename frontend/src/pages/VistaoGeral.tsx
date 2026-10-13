@@ -236,11 +236,11 @@ const VistaoGeral: React.FC = () => {
 
             {/* Header */}
             <div>
-                <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                     Visão Geral
                 </h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap', marginTop: '0.375rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>
                         Resumo financeiro · {hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                     {syncCarregado && (
@@ -361,13 +361,13 @@ const VistaoGeral: React.FC = () => {
             </div>
 
             {/* ── KPI Cards ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '1.25rem' }}>
 
                 {/* Card 1: Despesa do Período */}
                 <button onClick={() => navigate(`/despesas?de=${periodoAplic.de}&ate=${periodoAplic.ate}`)} className="kpi-card" style={cardStyle}>
                     <div style={cardHeaderRow}>
                         <div className="kpi-icon" style={{ background: 'var(--primary-light)' }}>
-                            <TrendingUp size={18} color="var(--primary)" />
+                            <TrendingUp size={22} color="var(--primary)" />
                         </div>
                         {varDespesa !== 0 && (
                             <span style={badgeStyle(varDespesa)}>
@@ -397,7 +397,7 @@ const VistaoGeral: React.FC = () => {
                 <button onClick={() => navigate('/inadimplencia')} className="kpi-card" style={cardStyle}>
                     <div style={cardHeaderRow}>
                         <div className="kpi-icon" style={{ background: 'var(--danger-light)' }}>
-                            <AlertTriangle size={18} color="var(--danger)" />
+                            <AlertTriangle size={22} color="var(--danger)" />
                         </div>
                     </div>
                     <div style={cardLabel}>Total Vencido em Atraso</div>
@@ -412,7 +412,7 @@ const VistaoGeral: React.FC = () => {
                 <button onClick={() => navigate('/evolucao')} className="kpi-card" style={cardStyle}>
                     <div style={cardHeaderRow}>
                         <div className="kpi-icon" style={{ background: 'var(--success-light)' }}>
-                            <Landmark size={18} color="var(--success)" />
+                            <Landmark size={22} color="var(--success)" />
                         </div>
                     </div>
                     <div style={cardLabel}>Receitas Recebidas</div>
@@ -432,8 +432,8 @@ const VistaoGeral: React.FC = () => {
                                 <div style={cardHeaderRow}>
                                     <div className="kpi-icon" style={{ background: positivo ? 'var(--success-light)' : 'var(--danger-light)' }}>
                                         {positivo
-                                            ? <TrendingDown size={18} color="var(--success)" />
-                                            : <TrendingDown size={18} color="var(--danger)" />}
+                                            ? <TrendingDown size={22} color="var(--success)" />
+                                            : <TrendingDown size={22} color="var(--danger)" />}
                                     </div>
                                 </div>
                                 <div style={cardLabel}>Saldo Líquido</div>
@@ -448,37 +448,37 @@ const VistaoGeral: React.FC = () => {
             </div>
 
             {/* ── Bottom row ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1.25rem' }}>
 
                 {/* Maiores Devedores */}
-                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem', boxShadow: 'var(--shadow-sm)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <div>
-                            <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-main)' }}>Maiores Devedores</h3>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
+                            <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-main)' }}>Maiores Devedores</h3>
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.1875rem' }}>
                                 Acima de {fmt(THRESHOLD_DEVEDOR)} · demais agrupados como "Diversos"
                             </p>
                         </div>
-                        <button onClick={() => navigate('/inadimplencia')} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                            Ver todos <ChevronRight size={14} />
+                        <button onClick={() => navigate('/inadimplencia')} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.875rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                            Ver todos <ChevronRight size={15} />
                         </button>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9375rem' }}>
                         {kpiBase.topDevedores.map((d, i) => {
                             const pct = kpiBase.totalAtraso > 0 ? (d.valorDevido / kpiBase.totalAtraso) * 100 : 0;
                             const isDiversos = d.cliente === 'Diversos';
                             return (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-subtle)', width: 18, textAlign: 'right', flexShrink: 0, fontWeight: 600 }}>{i + 1}</span>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                            <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: isDiversos ? 'var(--text-muted)' : 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%', fontStyle: isDiversos ? 'italic' : 'normal' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                            <span style={{ fontSize: '0.9375rem', fontWeight: 500, color: isDiversos ? 'var(--text-muted)' : 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%', fontStyle: isDiversos ? 'italic' : 'normal' }}>
                                                 {d.cliente}
                                             </span>
-                                            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--danger)', flexShrink: 0 }}>{fmt(d.valorDevido)}</span>
+                                            <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--danger)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmt(d.valorDevido)}</span>
                                         </div>
-                                        <div style={{ height: 4, background: 'var(--background)', borderRadius: 2, overflow: 'hidden' }}>
-                                            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: isDiversos ? '#94a3b8' : (i === 0 ? 'var(--danger)' : i <= 2 ? '#f97316' : '#fbbf24'), borderRadius: 2 }} />
+                                        <div style={{ height: 7, background: 'var(--background)', borderRadius: 4, overflow: 'hidden' }}>
+                                            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: isDiversos ? 'var(--text-subtle)' : 'var(--danger)', opacity: isDiversos ? 0.6 : (1 - i * 0.1), borderRadius: 4 }} />
                                         </div>
                                     </div>
                                 </div>
@@ -488,28 +488,28 @@ const VistaoGeral: React.FC = () => {
                 </div>
 
                 {/* Módulos */}
-                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
-                    <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '1.25rem' }}>Módulos</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem', boxShadow: 'var(--shadow-sm)' }}>
+                    <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.5rem' }}>Módulos</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                         {[
-                            { label: 'Risco e Inadimplência',  desc: 'Aging, devedores e carteira de risco',    path: '/inadimplencia', color: 'var(--danger)',  bg: 'var(--danger-light)' },
-                            { label: 'Custos & Despesas',      desc: 'Pareto por categoria e centro de custo',   path: '/despesas',      color: 'var(--primary)', bg: 'var(--primary-light)' },
-                            { label: 'Análise Avançada',       desc: 'Evolução mensal, lucros e caixa',           path: '/evolucao',      color: '#7c3aed',        bg: '#f5f3ff' },
-                            { label: 'Sincronização',          desc: 'Atualizar dados via API Conta Azul',        path: '/importacao',    color: 'var(--success)', bg: 'var(--success-light)' },
+                            { label: 'Risco e Inadimplência',  desc: 'Aging, devedores e carteira de risco',    path: '/inadimplencia', color: 'var(--danger)',         bg: 'var(--danger-light)' },
+                            { label: 'Custos & Despesas',      desc: 'Pareto por categoria e centro de custo',   path: '/despesas',      color: 'var(--warning)',        bg: 'var(--warning-light)' },
+                            { label: 'Análise Avançada',       desc: 'Evolução mensal, lucros e caixa',           path: '/evolucao',      color: 'var(--primary)',        bg: 'var(--primary-light)' },
+                            { label: 'Sincronização',          desc: 'Atualizar dados via API Conta Azul',        path: '/importacao',    color: 'var(--brand-graphite)', bg: 'var(--background)' },
                         ].map(m => (
                             <button key={m.path} onClick={() => navigate(m.path)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'transparent', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)', background: 'transparent', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
                                 onMouseEnter={e => (e.currentTarget.style.background = m.bg)}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                             >
-                                <div style={{ width: 32, height: 32, borderRadius: 7, background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color }} />
+                                <div style={{ width: 38, height: 38, borderRadius: 8, background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <div style={{ width: 9, height: 9, borderRadius: '50%', background: m.color }} />
                                 </div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>{m.label}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.desc}</div>
+                                    <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-main)' }}>{m.label}</div>
+                                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{m.desc}</div>
                                 </div>
-                                <ChevronRight size={14} color="var(--text-subtle)" />
+                                <ChevronRight size={16} color="var(--text-subtle)" />
                             </button>
                         ))}
                     </div>
@@ -565,29 +565,31 @@ const cardStyle: React.CSSProperties = {
 };
 
 const cardHeaderRow: React.CSSProperties = {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.875rem',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.125rem',
 };
 
 const cardLabel: React.CSSProperties = {
-    fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)',
-    textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem',
+    fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)',
+    marginBottom: '0.375rem',
 };
 
 const cardValue = (dim: boolean): React.CSSProperties => ({
-    fontSize: '1.4375rem', fontWeight: 700, color: dim ? 'var(--text-subtle)' : 'var(--text-main)',
-    letterSpacing: '-0.025em', lineHeight: 1.1,
+    fontFamily: 'var(--font-display)',
+    fontSize: '1.625rem', fontWeight: 800, color: dim ? 'var(--text-subtle)' : 'var(--text-main)',
+    letterSpacing: '-0.02em', lineHeight: 1.15, fontVariantNumeric: 'tabular-nums',
+    whiteSpace: 'nowrap',
 });
 
 const cardSubLabel: React.CSSProperties = {
-    fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: '0.375rem',
+    fontSize: '0.8125rem', color: 'var(--text-subtle)', marginTop: '0.5rem',
 };
 
 const badgeStyle = (delta: number): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 3,
-    fontSize: '0.75rem', fontWeight: 600,
+    fontSize: '0.8125rem', fontWeight: 700,
     color:       delta <= 0 ? 'var(--success)' : 'var(--danger)',
     background:  delta <= 0 ? 'var(--success-light)' : 'var(--danger-light)',
-    padding: '0.2rem 0.5rem', borderRadius: '1rem',
+    padding: '0.25rem 0.625rem', borderRadius: '1rem',
 });
 
 export default VistaoGeral;

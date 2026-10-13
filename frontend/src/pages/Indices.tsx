@@ -35,7 +35,7 @@ const mesLegivel = (iso: string) => {
     return `${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][Number(mes) - 1]}/${ano.slice(2)}`;
 };
 
-const COR_DESPESA = '#2563eb';
+const COR_DESPESA = '#0b6b76';
 const COR_RECEITA = '#059669';
 const COR_ALERTA = '#dc2626';
 const COR_NEUTRA = '#cbd5e1';
