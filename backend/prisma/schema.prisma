@@ -167,6 +167,7 @@ model Insumo {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
   precos     InsumoPreco[]
+  fichaItens FichaItem[]
 }
 
 model InsumoPreco {
@@ -200,4 +201,59 @@ model Equipamento {
   observacao    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  fichaItens    FichaItem[]
+}
+
+// Ensaio com a ficha técnica. O custo não é gravado: é calculado a partir dos
+// itens da ficha com os preços vigentes, então muda sozinho quando um insumo
+// é reajustado.
+model Ensaio {
+  id            String      @id @default(uuid())
+  chave         String      @unique
+  nome          String
+  codigoLims    String?
+  metodologia   String?
+  setor         String?     // FQ ou MICRO
+  percentualCQ  Float       @default(0) // controle de qualidade (branco, padrão, duplicata) sobre o custo
+  custoPlanilha Float?      // custo que a planilha de referência apontava, para comparação
+  origem        String?     // aba da planilha de onde a ficha veio
+  ativo         Boolean     @default(true)
+  pendencia     String?
+  observacao    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  itens         FichaItem[]
+}
+
+// Linha da ficha técnica. "rendimento" é quantas análises a linha atende:
+// atividade feita em lote, solução preparada que serve várias análises ou, no
+// equipamento, quantas análises por dia dividem o custo diário.
+model FichaItem {
+  id            String       @id @default(uuid())
+  ensaioId      String
+  ensaio        Ensaio       @relation(fields: [ensaioId], references: [id], onDelete: Cascade)
+  ordem         Int          @default(0)
+  tipo          String       // ATIVIDADE, INSUMO ou EQUIPAMENTO
+  descricao     String?      // nome da atividade
+  grupo         String?      // solução preparada ou etapa a que o insumo pertence
+  minutos       Float?
+  insumoId      String?
+  insumo        Insumo?      @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+  quantidade    Float?       // na unidade do insumo
+  equipamentoId String?
+  equipamento   Equipamento? @relation(fields: [equipamentoId], references: [id], onDelete: Restrict)
+  vidaUtilMeses Float?       // sobrepõe a vida útil do cadastro do equipamento
+  rendimento    Float        @default(1)
+
+  @@index([ensaioId])
+  @@index([insumoId])
+  @@index([equipamentoId])
+}
+
+// Parâmetros gerais do custeio (custo do minuto do técnico, dias úteis...).
+model ParametroCusto {
+  chave     String   @id
+  valor     Float
+  descricao String?
+  updatedAt DateTime @updatedAt
 }

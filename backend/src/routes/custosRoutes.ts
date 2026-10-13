@@ -6,6 +6,8 @@ import {
     getEquipamentos, getInsumo, getInsumos,
     postEquipamento, postInsumo, postPrecoInsumo,
     putEquipamento, putInsumo, uploadPlanilhaCustos,
+    deleteEnsaio, getEnsaio, getEnsaios, getParametros, postDuplicarEnsaio,
+    postEnsaio, postSimularFicha, putEnsaio, putParametros,
 } from '../controllers/custosController';
 
 const router = Router();
@@ -31,6 +33,17 @@ router.get('/equipamentos', getEquipamentos);
 router.post('/equipamentos', postEquipamento);
 router.put('/equipamentos/:id', putEquipamento);
 router.delete('/equipamentos/:id', deleteEquipamento);
+
+router.get('/ensaios', getEnsaios);
+router.post('/ensaios', postEnsaio);
+router.post('/ensaios/simular', postSimularFicha);
+router.get('/ensaios/:id', getEnsaio);
+router.put('/ensaios/:id', putEnsaio);
+router.delete('/ensaios/:id', deleteEnsaio);
+router.post('/ensaios/:id/duplicar', postDuplicarEnsaio);
+
+router.get('/parametros', getParametros);
+router.put('/parametros', putParametros);
 
 router.post('/importar-planilha', planilhaUpload.single('file'), uploadPlanilhaCustos);
 

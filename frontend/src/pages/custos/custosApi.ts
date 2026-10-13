@@ -26,7 +26,7 @@ export interface Insumo {
 export interface Equipamento {
     id: string;
     nome: string;
-    tipo: 'EQUIPAMENTO' | 'CALIBRACAO';
+    tipo: 'EQUIPAMENTO' | 'CALIBRACAO' | 'MANUTENCAO';
     setor: string | null;
     valor: number | null;
     vidaUtilMeses: number | null;
@@ -35,6 +35,77 @@ export interface Equipamento {
     pendencia: string | null;
     observacao: string | null;
 }
+
+export type TipoItem = 'ATIVIDADE' | 'INSUMO' | 'EQUIPAMENTO';
+
+export interface ItemFicha {
+    id?: string;
+    tipo: TipoItem;
+    descricao?: string | null;
+    grupo?: string | null;
+    minutos?: number | null;
+    insumoId?: string | null;
+    quantidade?: number | null;
+    equipamentoId?: string | null;
+    vidaUtilMeses?: number | null;
+    rendimento: number;
+}
+
+export interface ItemCalculado extends ItemFicha {
+    nome: string;
+    unidade: string | null;
+    precoUnitario: number | null;
+    custo: number | null;
+    aviso: string | null;
+}
+
+export interface CalculoFicha {
+    itens: ItemCalculado[];
+    maoDeObra: number;
+    materiais: number;
+    equipamentos: number;
+    subtotal: number;
+    controleQualidade: number;
+    total: number;
+    avisos: string[];
+}
+
+export interface EnsaioResumo {
+    id: string;
+    nome: string;
+    codigoLims: string | null;
+    metodologia: string | null;
+    setor: string | null;
+    percentualCQ: number;
+    custoPlanilha: number | null;
+    origem: string | null;
+    ativo: boolean;
+    pendencia: string | null;
+    observacao: string | null;
+    qtdItens: number;
+    custo: {
+        maoDeObra: number;
+        materiais: number;
+        equipamentos: number;
+        controleQualidade: number;
+        total: number;
+        qtdAvisos: number;
+    };
+}
+
+export type EnsaioDetalhe = Omit<EnsaioResumo, 'custo' | 'qtdItens'> & { calculo: CalculoFicha };
+
+export interface Parametro {
+    chave: 'custoMinutoTecnico' | 'diasUteisMes';
+    valor: number;
+    descricao: string;
+}
+
+export const TIPOS_EQUIPAMENTO = [
+    { value: 'EQUIPAMENTO', label: 'Equipamento' },
+    { value: 'CALIBRACAO', label: 'Calibração / qualificação' },
+    { value: 'MANUTENCAO', label: 'Manutenção / contrato' },
+];
 
 export const SETORES = [
     { value: 'FQ', label: 'Físico-Química' },

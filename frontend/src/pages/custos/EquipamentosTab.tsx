@@ -1,16 +1,13 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { AlertTriangle, Plus, Search, Trash2, X } from 'lucide-react';
-import { Equipamento, SETORES, custosApi, formatBRL, labelSetor, normalizar } from './custosApi';
+import { Equipamento, SETORES, TIPOS_EQUIPAMENTO, custosApi, formatBRL, labelSetor, normalizar } from './custosApi';
 
 interface Props {
     equipamentos: Equipamento[];
     recarregar: () => Promise<void>;
 }
 
-const TIPOS = [
-    { value: 'EQUIPAMENTO', label: 'Equipamento' },
-    { value: 'CALIBRACAO', label: 'Calibração / qualificação' },
-];
+const TIPOS = TIPOS_EQUIPAMENTO;
 
 export default function EquipamentosTab({ equipamentos, recarregar }: Props) {
     const [busca, setBusca] = useState('');
@@ -83,7 +80,7 @@ export default function EquipamentosTab({ equipamentos, recarregar }: Props) {
                                     {e.pendencia && <span className="custos-badge pendencia" title={e.pendencia}><AlertTriangle size={11} /> conferir</span>}
                                     {!e.ativo && <span className="custos-badge inativo">inativo</span>}
                                 </td>
-                                <td><span className="custos-badge neutro">{e.tipo === 'CALIBRACAO' ? 'Calibração' : 'Equipamento'}</span></td>
+                                <td><span className="custos-badge neutro">{TIPOS.find(t => t.value === e.tipo)?.label.split(' /')[0] ?? e.tipo}</span></td>
                                 <td className="setor">{labelSetor(e.setor)}</td>
                                 <td className="num">{formatBRL(e.valor)}</td>
                                 <td className="num">{e.vidaUtilMeses ? `${e.vidaUtilMeses} meses` : '—'}</td>
@@ -195,7 +192,7 @@ function EquipamentoModal({ equipamento, onClose, onSaved }: ModalProps) {
                                 {SETORES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </select>
                         </label>
-                        <label>{form.tipo === 'CALIBRACAO' ? 'Custo da calibração (R$)' : 'Valor do equipamento (R$)'}
+                        <label>{form.tipo === 'CALIBRACAO' ? 'Custo da calibração (R$)' : form.tipo === 'MANUTENCAO' ? 'Valor do contrato (R$)' : 'Valor do equipamento (R$)'}
                             <input type="number" step="any" min="0" value={form.valor} onChange={set('valor')} />
                         </label>
                         <label>{form.tipo === 'CALIBRACAO' ? 'Periodicidade (meses)' : 'Vida útil (meses)'}

@@ -7,6 +7,10 @@ import {
     listarEquipamentos, listarInsumos, obterInsumo, registrarPrecoInsumo,
 } from '../services/custosService';
 import { importarPlanilhaCustos } from '../services/custosImportacaoService';
+import {
+    atualizarEnsaio, criarEnsaio, duplicarEnsaio, excluirEnsaio,
+    listarEnsaios, listarParametros, obterEnsaio, salvarParametros, simularFicha,
+} from '../services/ensaiosService';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -23,6 +27,10 @@ function tratar(contexto: string, handler: Handler) {
             }
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
                 res.status(404).json({ message: 'Cadastro não encontrado.' });
+                return;
+            }
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+                res.status(409).json({ message: 'Este cadastro é usado em fichas técnicas de ensaios. Marque como inativo em vez de excluir.' });
                 return;
             }
             console.error(`[Custos] ${contexto}:`, error.message);
@@ -66,6 +74,41 @@ export const putEquipamento = tratar('atualizar o equipamento', async req => atu
 
 export const deleteEquipamento = tratar('excluir o equipamento', async req => excluirEquipamento(req.params.id));
 
+// Data opcional (?data=AAAA-MM-DD) para calcular com os preços vigentes naquele dia.
+function dataConsulta(req: Request): Date | undefined {
+    // As vigências são gravadas como datas em UTC; o dia consultado vale inteiro.
+    const data = typeof req.query.data === 'string' ? new Date(`${req.query.data}T23:59:59.999Z`) : undefined;
+    return data && !Number.isNaN(data.getTime()) ? data : undefined;
+}
+
+export const getEnsaios = tratar('listar os ensaios', async req => listarEnsaios(dataConsulta(req)));
+
+export const getEnsaio = tratar('carregar o ensaio', async (req, res) => {
+    const ensaio = await obterEnsaio(req.params.id, dataConsulta(req));
+    if (!ensaio) res.status(404).json({ message: 'Ensaio não encontrado.' });
+    return ensaio;
+});
+
+export const postEnsaio = tratar('cadastrar o ensaio', async (req, res) => {
+    res.status(201);
+    return criarEnsaio(req.body ?? {});
+});
+
+export const putEnsaio = tratar('salvar o ensaio', async req => atualizarEnsaio(req.params.id, req.body ?? {}));
+
+export const deleteEnsaio = tratar('excluir o ensaio', async req => excluirEnsaio(req.params.id));
+
+export const postDuplicarEnsaio = tratar('duplicar o ensaio', async (req, res) => {
+    res.status(201);
+    return duplicarEnsaio(req.params.id);
+});
+
+export const postSimularFicha = tratar('calcular a ficha', async req => simularFicha(req.body ?? {}));
+
+export const getParametros = tratar('carregar os parâmetros', async () => listarParametros());
+
+export const putParametros = tratar('salvar os parâmetros', async req => salvarParametros(req.body ?? {}));
+
 export async function uploadPlanilhaCustos(req: Request, res: Response): Promise<void> {
     if (!req.file) {
         res.status(400).json({ message: 'Selecione a planilha de custos (.xlsx ou .xls).' });
@@ -78,7 +121,9 @@ export async function uploadPlanilhaCustos(req: Request, res: Response): Promise
         res.json({
             success: true,
             message: `Planilha importada: ${r.insumosCriados} insumo(s) novo(s), ${r.precosAdicionados} preço(s) atualizado(s), `
-                + `${r.equipamentosCriados} equipamento(s)/calibração(ões) novo(s). ${r.comPendencia} cadastro(s) ficaram com pendência para conferir.`,
+                + `${r.equipamentosCriados} equipamento(s)/calibração(ões) novo(s), ${r.ensaiosCriados} ensaio(s) com ficha técnica`
+                + `${r.ensaiosExistentes ? ` (${r.ensaiosExistentes} já existiam e não foram alterados)` : ''}. `
+                + `${r.comPendencia} cadastro(s) ficaram com pendência para conferir.`,
             ...r,
         });
     } catch (error: any) {

@@ -1,26 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BarChart3, FlaskConical, Microscope, UploadCloud } from 'lucide-react';
-import { Equipamento, Insumo, custosApi } from './custosApi';
+import { BarChart3, ClipboardList, FlaskConical, Microscope, UploadCloud } from 'lucide-react';
+import { EnsaioResumo, Equipamento, Insumo, custosApi } from './custosApi';
+import EnsaiosTab from './EnsaiosTab';
 import InsumosTab from './InsumosTab';
 import EquipamentosTab from './EquipamentosTab';
 import PainelExemplo from './PainelExemplo';
 import './Custos.css';
 
-type Aba = 'insumos' | 'equipamentos' | 'painel';
+type Aba = 'ensaios' | 'insumos' | 'equipamentos' | 'painel';
 const ABA_KEY = 'ca-bi:custos-aba';
 
 function abaInicial(): Aba {
     try {
         const salva = localStorage.getItem(ABA_KEY);
-        if (salva === 'insumos' || salva === 'equipamentos' || salva === 'painel') return salva;
+        if (salva === 'ensaios' || salva === 'insumos' || salva === 'equipamentos' || salva === 'painel') return salva;
     } catch { /* sem storage: usa o padrão */ }
-    return 'insumos';
+    return 'ensaios';
 }
 
 export default function CustosLaboratorio() {
     const [aba, setAba] = useState<Aba>(abaInicial);
     const [insumos, setInsumos] = useState<Insumo[]>([]);
     const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+    const [ensaios, setEnsaios] = useState<EnsaioResumo[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [feedback, setFeedback] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
     const [arquivo, setArquivo] = useState<File | null>(null);
@@ -29,12 +31,18 @@ export default function CustosLaboratorio() {
 
     const recarregarInsumos = useCallback(async () => setInsumos(await custosApi<Insumo[]>('/insumos')), []);
     const recarregarEquipamentos = useCallback(async () => setEquipamentos(await custosApi<Equipamento[]>('/equipamentos')), []);
+    const recarregarEnsaios = useCallback(async () => setEnsaios(await custosApi<EnsaioResumo[]>('/ensaios')), []);
+    // Preço de insumo ou valor de equipamento muda o custo dos ensaios.
+    const recarregarCadastrosEEnsaios = useCallback(
+        async () => { await Promise.all([recarregarInsumos(), recarregarEquipamentos(), recarregarEnsaios()]); },
+        [recarregarInsumos, recarregarEquipamentos, recarregarEnsaios],
+    );
 
     useEffect(() => {
-        Promise.all([recarregarInsumos(), recarregarEquipamentos()])
+        recarregarCadastrosEEnsaios()
             .catch(e => setFeedback({ tipo: 'error', texto: e.message }))
             .finally(() => setCarregando(false));
-    }, [recarregarInsumos, recarregarEquipamentos]);
+    }, [recarregarCadastrosEEnsaios]);
 
     const trocarAba = (nova: Aba) => {
         setAba(nova);
@@ -52,7 +60,7 @@ export default function CustosLaboratorio() {
             setFeedback({ tipo: 'success', texto: r.message });
             setArquivo(null);
             if (inputRef.current) inputRef.current.value = '';
-            await Promise.all([recarregarInsumos(), recarregarEquipamentos()]);
+            await recarregarCadastrosEEnsaios();
         } catch (e: any) {
             setFeedback({ tipo: 'error', texto: e.message });
         } finally {
@@ -66,9 +74,9 @@ export default function CustosLaboratorio() {
                 <div>
                     <h3>Importar planilha de custos</h3>
                     <p>
-                        Aceita a planilha de Físico-Química (abas "Insumos MM" e "Equipamentos MM") e a de Microbiologia
-                        (fichas e abas de calibração). Pode importar de novo quando a planilha for atualizada: nada é duplicado
-                        e preços diferentes entram no histórico com a data do nome do arquivo.
+                        Aceita a planilha de Físico-Química e a de Microbiologia: traz insumos, equipamentos e a ficha técnica
+                        de cada ensaio. Pode importar de novo quando a planilha for atualizada: nada é duplicado, fichas já
+                        cadastradas não são alteradas e preços diferentes entram no histórico com a data do nome do arquivo.
                     </p>
                 </div>
                 <div className="custos-import-action">
@@ -82,6 +90,9 @@ export default function CustosLaboratorio() {
             {feedback && <div className={`custos-feedback ${feedback.tipo}`}>{feedback.texto}</div>}
 
             <nav className="custos-tabs">
+                <button className={aba === 'ensaios' ? 'active' : ''} onClick={() => trocarAba('ensaios')}>
+                    <ClipboardList size={15} /> Ensaios <span className="tab-count">{ensaios.length}</span>
+                </button>
                 <button className={aba === 'insumos' ? 'active' : ''} onClick={() => trocarAba('insumos')}>
                     <FlaskConical size={15} /> Insumos <span className="tab-count">{insumos.length}</span>
                 </button>
@@ -95,15 +106,17 @@ export default function CustosLaboratorio() {
 
             {carregando ? (
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Carregando cadastros...</div>
+            ) : aba === 'ensaios' ? (
+                <EnsaiosTab ensaios={ensaios} insumos={insumos} equipamentos={equipamentos} recarregar={recarregarEnsaios} />
             ) : aba === 'insumos' ? (
-                <InsumosTab insumos={insumos} recarregar={recarregarInsumos} />
+                <InsumosTab insumos={insumos} recarregar={recarregarCadastrosEEnsaios} />
             ) : aba === 'equipamentos' ? (
-                <EquipamentosTab equipamentos={equipamentos} recarregar={recarregarEquipamentos} />
+                <EquipamentosTab equipamentos={equipamentos} recarregar={recarregarCadastrosEEnsaios} />
             ) : (
                 <>
                     <div className="custos-aviso-exemplo">
-                        Este painel ainda usa valores de exemplo. Ele passará a usar os custos reais quando as fichas técnicas
-                        dos ensaios forem cadastradas (próxima fase).
+                        Este painel ainda usa valores de exemplo. Os custos reais de cada ensaio estão na aba Ensaios; os
+                        gráficos passarão a usá-los junto com a margem de contribuição (próxima fase).
                     </div>
                     <PainelExemplo />
                 </>

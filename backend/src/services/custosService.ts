@@ -156,7 +156,7 @@ export async function excluirPrecoInsumo(insumoId: string, precoId: string) {
 
 // ── Equipamentos ─────────────────────────────────────────
 
-const TIPOS_EQUIPAMENTO = ['EQUIPAMENTO', 'CALIBRACAO'];
+const TIPOS_EQUIPAMENTO = ['EQUIPAMENTO', 'CALIBRACAO', 'MANUTENCAO'];
 
 function dadosEquipamento(body: Record<string, unknown>) {
     const nome = nomeObrigatorio(body.nome);
