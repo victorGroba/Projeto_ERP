@@ -32,6 +32,79 @@ function parseMunicipalDate(value: unknown): Date | null {
 
 const monthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 
+// Chave de agrupamento da composicao de vendas: mesma normalizacao de
+// `normalizeKey`, mas preservando espacos (acentos variam muito na digitacao
+// livre da discriminacao, ex: "IN161" vs "IN 161").
+const normalizeServico = (value: string) => value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+// Prefixos de segmentos que sao rodape da nota (total, referencia, contrato,
+// numero de OC/guia), nao um item de servico vendido.
+const PREFIXOS_RODAPE = /^(total|ref(erente)?\b|oc:?|contrato\b|n[ºo°]?\s*cno\b|banco\b|nota de empenho\b|processo\b)/i;
+
+// Casa segmentos como "Swab 3 parametros - R$ 122,00  8  R$ 976,00": nome do
+// servico, preco unitario, quantidade e valor total do item.
+const ITEM_SERVICO_PATTERN = /^(.+?)\s*-\s*R\$\s*([\d.,]+)\s+(\d+)\s+R\$\s*([\d.,]+)\s*$/;
+
+export interface ItemServicoParseado {
+    descricao: string;
+    descricaoNormalizada: string;
+    quantidade: number;
+    valorUnitario: number | null;
+    valorTotal: number;
+    estruturado: boolean;
+}
+
+/**
+ * Extrai os itens vendidos da discriminacao de servicos de uma nota. A
+ * discriminacao e texto livre digitado nota a nota; quando segue o padrao
+ * "nome - R$ unit  qtd  R$ total" conseguimos o item exato. Quando nao segue
+ * (contratos, prestacao continua, etc.), devolvemos um unico item com o texto
+ * inteiro e `estruturado: false`, usando o valor bruto da nota, para a
+ * composicao de vendas nao perder faturamento mesmo sem conseguir detalhar.
+ */
+export function parseItensServico(descricao: string | null | undefined, valorBrutoNota: number): ItemServicoParseado[] {
+    const texto = String(descricao || '').trim();
+    if (!texto) return [];
+
+    const segmentos = texto.split('|').map(segmento => segmento.trim()).filter(Boolean);
+    const itens: ItemServicoParseado[] = [];
+    for (const segmento of segmentos) {
+        if (PREFIXOS_RODAPE.test(segmento)) continue;
+        const match = segmento.match(ITEM_SERVICO_PATTERN);
+        if (!match) continue;
+        const [, nome, preco, qtd, total] = match;
+        const nomeLimpo = nome.trim();
+        if (!nomeLimpo) continue;
+        itens.push({
+            descricao: nomeLimpo,
+            descricaoNormalizada: normalizeServico(nomeLimpo),
+            quantidade: Number(qtd),
+            valorUnitario: parseCurrency(preco),
+            valorTotal: parseCurrency(total),
+            estruturado: true,
+        });
+    }
+
+    if (itens.length > 0) return itens;
+
+    // Nenhum segmento reconhecido: guarda o texto inteiro como um item unico
+    // nao estruturado, para a composicao de vendas nao perder esse valor.
+    const nomeFallback = texto.length > 180 ? `${texto.slice(0, 180)}…` : texto;
+    return [{
+        descricao: nomeFallback,
+        descricaoNormalizada: normalizeServico(nomeFallback),
+        quantidade: 1,
+        valorUnitario: null,
+        valorTotal: valorBrutoNota,
+        estruturado: false,
+    }];
+}
+
 function readRows(buffer: Buffer): Promise<Record<string, string>[]> {
     const content = buffer.toString('latin1');
     const header = content.split(/\r?\n/, 1)[0] || '';
@@ -74,11 +147,21 @@ export async function importarFaturamentoFiscal(buffer: Buffer, arquivoNome: str
             const clienteDocumento = digits(row.cpf_cnpj_nif_do_tomador);
             const clienteNome = String(row.razao_social_do_tomador || '').trim();
             const prestadorDocumento = digits(row.cpf_cnpj_do_prestador);
+            // Retencoes federais e discriminacao do servico: colunas opcionais no
+            // layout (nem toda prefeitura/versao do arquivo as inclui), por isso
+            // nao entram na validacao de linha obrigatoria abaixo.
+            const valorCSLL = parseCurrency(row.valor_csll);
+            const valorIR = parseCurrency(row.valor_ir);
+            const descricaoServico = String(row.discriminacao_dos_servicos || '').trim() || null;
 
             if (!numero || !dataEmissao || !dataCompetencia || !prestadorDocumento || !clienteDocumento || !clienteNome || !(valorBruto > 0)) {
                 throw new Error(`Arquivo rejeitado: a nota da linha ${index + 2} tem número, data, CNPJ, cliente ou valor inválido.`);
             }
-            return { numero, dataEmissao, dataCompetencia, valorBruto, clienteDocumento, clienteNome, prestadorDocumento };
+            return {
+                numero, dataEmissao, dataCompetencia, valorBruto, clienteDocumento, clienteNome, prestadorDocumento,
+                valorCSLL, valorIR, descricaoServico,
+                itens: parseItensServico(descricaoServico, valorBruto),
+            };
         });
 
     if (notas.length === 0) {
@@ -125,7 +208,12 @@ export async function importarFaturamentoFiscal(buffer: Buffer, arquivoNome: str
                         qtdNotas: notasDoMes.length,
                         valorTotal: Math.round(notasDoMes.reduce((sum, nota) => sum + nota.valorBruto, 0) * 100) / 100,
                         qtdNaoConciliadas: notasDoMes.filter(nota => !documentosCadastrados.has(nota.clienteDocumento)).length,
-                        notas: { createMany: { data: notasDoMes } },
+                        notas: {
+                            create: notasDoMes.map(({ itens, ...nota }) => ({
+                                ...nota,
+                                itens: { create: itens },
+                            })),
+                        },
                     },
                 });
             }

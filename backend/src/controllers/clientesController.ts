@@ -29,6 +29,34 @@ function codigoDestinoAlias(documento: string | null | undefined, nome: string |
     return alias?.codigoDestino || null;
 }
 
+// Indice do cadastro Conta Azul usado tanto na visao de clientes quanto na
+// composicao de servicos, para resolver qual cadastro (e portanto qual
+// `codigo`/grupo) corresponde a uma nota fiscal pelo documento ou nome do tomador.
+async function construirIndiceClientes() {
+    const clientes = await prisma.clienteContaAzul.findMany({ orderBy: [{ codigo: 'asc' }, { nome: 'asc' }] });
+    const porDocumento = new Map<string, typeof clientes[number]>();
+    const porNome = new Map<string, typeof clientes[number]>();
+    const porCodigo = new Map<string, typeof clientes[number]>();
+    clientes.forEach(c => {
+        const documento = digits(c.documento);
+        if (documento) porDocumento.set(documento, c);
+        [c.nome, c.nomeEmpresa].filter(Boolean).forEach(nome => porNome.set(normalize(nome), c));
+        if (c.codigo) porCodigo.set(normalize(c.codigo), c);
+    });
+
+    const cadastroPorAlias = (documento: string | null | undefined, nome: string | null | undefined) => {
+        const codigoDestino = codigoDestinoAlias(documento, nome);
+        return codigoDestino ? porCodigo.get(normalize(codigoDestino)) : undefined;
+    };
+
+    const cadastroNotaFiscal = (documento: string, nome: string) =>
+        cadastroPorAlias(documento, nome)
+        || porDocumento.get(documento)
+        || porNome.get(normalize(nome));
+
+    return { clientes, porId: new Map(clientes.map(c => [c.id, c])), porNome, cadastroPorAlias, cadastroNotaFiscal };
+}
+
 const monthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 function monthKeysBetween(startBR: Date, endBR: Date): string[] {
     // Os limites vem de parseDate (horario de Brasilia); 30/06 23:59 -03 ja e julho em UTC.
@@ -141,10 +169,12 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             clienteDocumento: true,
             clienteNome: true,
             valorBruto: true,
+            valorCSLL: true,
+            valorIR: true,
             dataCompetencia: true,
         } as const;
-        const [clientes, titulos, notasFiscais, notasAnteriores, importacoesFiscais] = await Promise.all([
-            prisma.clienteContaAzul.findMany({ orderBy: [{ codigo: 'asc' }, { nome: 'asc' }] }),
+        const [{ clientes, porId, porNome, cadastroPorAlias, cadastroNotaFiscal }, titulos, notasFiscais, notasAnteriores, importacoesFiscais] = await Promise.all([
+            construirIndiceClientes(),
             prisma.contaReceber.findMany({
                 where: {
                     OR: [
@@ -171,38 +201,18 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             prisma.importacaoFiscal.findMany({ orderBy: { competencia: 'desc' } }),
         ]);
 
-        const porId = new Map(clientes.map(c => [c.id, c]));
-        const porDocumento = new Map<string, typeof clientes[number]>();
-        const porNome = new Map<string, typeof clientes[number]>();
-        const porCodigo = new Map<string, typeof clientes[number]>();
-        clientes.forEach(c => {
-            const documento = digits(c.documento);
-            if (documento) porDocumento.set(documento, c);
-            [c.nome, c.nomeEmpresa].filter(Boolean).forEach(nome => porNome.set(normalize(nome), c));
-            if (c.codigo) porCodigo.set(normalize(c.codigo), c);
-        });
-
-        const cadastroPorAlias = (documento: string | null | undefined, nome: string | null | undefined) => {
-            const codigoDestino = codigoDestinoAlias(documento, nome);
-            return codigoDestino ? porCodigo.get(normalize(codigoDestino)) : undefined;
-        };
-
-        const cadastroNotaFiscal = (documento: string, nome: string) =>
-            cadastroPorAlias(documento, nome)
-            || porDocumento.get(documento)
-            || porNome.get(normalize(nome));
-
         type LinhaCliente = {
             id: string; codigo: string | null; nome: string; nomeEmpresa: string | null;
             documento: string | null; email: string | null; cidade: string | null; uf: string | null;
             ativo: boolean; faturamento: number; recebido: number; aberto: number; titulos: number;
-            faturamentoAnterior: number; titulosAnterior: number;
+            impostos: number; faturamentoAnterior: number; titulosAnterior: number; impostosAnterior: number;
         };
         const linhas = new Map<string, LinhaCliente>();
         clientes.forEach(c => linhas.set(c.id, {
             id: c.id, codigo: c.codigo, nome: c.nome, nomeEmpresa: c.nomeEmpresa,
             documento: c.documento, email: c.email, cidade: c.cidade, uf: c.uf, ativo: c.ativo,
-            faturamento: 0, recebido: 0, aberto: 0, titulos: 0, faturamentoAnterior: 0, titulosAnterior: 0,
+            faturamento: 0, recebido: 0, aberto: 0, titulos: 0, impostos: 0,
+            faturamentoAnterior: 0, titulosAnterior: 0, impostosAnterior: 0,
         }));
 
         const mesesImportados = new Set(importacoesFiscais.map(item => monthKey(item.competencia)));
@@ -215,7 +225,8 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             if (!linhas.has(key)) linhas.set(key, {
                 id: key, codigo: null, nome: titulo.cliente, nomeEmpresa: null,
                 documento: null, email: null, cidade: null, uf: null, ativo: true,
-                faturamento: 0, recebido: 0, aberto: 0, titulos: 0, faturamentoAnterior: 0, titulosAnterior: 0,
+                faturamento: 0, recebido: 0, aberto: 0, titulos: 0, impostos: 0,
+                faturamentoAnterior: 0, titulosAnterior: 0, impostosAnterior: 0,
             });
             const linha = linhas.get(key)!;
             const recebido = titulo.valorPago ?? (titulo.status === STATUS_RECEITA.PAGO ? titulo.valor : 0);
@@ -231,7 +242,8 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             if (!linhas.has(key)) linhas.set(key, {
                 id: key, codigo: null, nome: nota.clienteNome, nomeEmpresa: null,
                 documento: nota.clienteDocumento || null, email: null, cidade: null, uf: null, ativo: true,
-                faturamento: 0, recebido: 0, aberto: 0, titulos: 0, faturamentoAnterior: 0, titulosAnterior: 0,
+                faturamento: 0, recebido: 0, aberto: 0, titulos: 0, impostos: 0,
+                faturamentoAnterior: 0, titulosAnterior: 0, impostosAnterior: 0,
             });
             return linhas.get(key)!;
         };
@@ -239,24 +251,27 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
         notasFiscais.forEach(nota => {
             const linha = linhaDaNota(nota);
             linha.faturamento += nota.valorBruto;
+            linha.impostos += nota.valorCSLL + nota.valorIR;
             linha.titulos++;
         });
         notasAnteriores.forEach(nota => {
             const linha = linhaDaNota(nota);
             linha.faturamentoAnterior += nota.valorBruto;
+            linha.impostosAnterior += nota.valorCSLL + nota.valorIR;
             linha.titulosAnterior++;
         });
 
         type Grupo = {
             codigo: string | null; clientes: LinhaCliente[]; faturamento: number; recebido: number; aberto: number; titulos: number;
-            faturamentoAnterior: number; titulosAnterior: number;
+            impostos: number; faturamentoAnterior: number; titulosAnterior: number; impostosAnterior: number;
         };
         const gruposMap = new Map<string, Grupo>();
         linhas.forEach(cliente => {
             const codigo = cliente.codigo?.trim() || null;
             const key = codigo ? `codigo:${normalize(codigo)}` : `cliente:${cliente.id}`;
             if (!gruposMap.has(key)) gruposMap.set(key, {
-                codigo, clientes: [], faturamento: 0, recebido: 0, aberto: 0, titulos: 0, faturamentoAnterior: 0, titulosAnterior: 0,
+                codigo, clientes: [], faturamento: 0, recebido: 0, aberto: 0, titulos: 0, impostos: 0,
+                faturamentoAnterior: 0, titulosAnterior: 0, impostosAnterior: 0,
             });
             const grupo = gruposMap.get(key)!;
             grupo.clientes.push(cliente);
@@ -264,8 +279,10 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             grupo.recebido += cliente.recebido;
             grupo.aberto += cliente.aberto;
             grupo.titulos += cliente.titulos;
+            grupo.impostos += cliente.impostos;
             grupo.faturamentoAnterior += cliente.faturamentoAnterior;
             grupo.titulosAnterior += cliente.titulosAnterior;
+            grupo.impostosAnterior += cliente.impostosAnterior;
         });
 
         const busca = normalize(typeof req.query.busca === 'string' ? req.query.busca : '');
@@ -318,6 +335,7 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                 mesesAusentes: mesesComparacao.filter(mes => !mesesImportados.has(mes)),
                 notasNoPeriodo: notasAnteriores.length,
                 faturamento: grupos.reduce((sum, g) => sum + g.faturamentoAnterior, 0),
+                impostos: grupos.reduce((sum, g) => sum + g.impostosAnterior, 0),
             },
             serieMensal,
             resumo: {
@@ -326,6 +344,7 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
                 semCodigo: grupos.filter(g => !g.codigo && g.faturamento > 0).length,
                 faturamentoSemCodigo: grupos.filter(g => !g.codigo).reduce((sum, g) => sum + g.faturamento, 0),
                 faturamento: grupos.reduce((sum, g) => sum + g.faturamento, 0),
+                impostos: grupos.reduce((sum, g) => sum + g.impostos, 0),
                 recebido: grupos.reduce((sum, g) => sum + g.recebido, 0),
                 aberto: grupos.reduce((sum, g) => sum + g.aberto, 0),
                 titulos: grupos.reduce((sum, g) => sum + g.titulos, 0),
@@ -335,5 +354,85 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
     } catch (error: any) {
         console.error('[Clientes] Falha ao montar visão:', error.message);
         res.status(500).json({ message: 'Não foi possível carregar a visão de clientes.' });
+    }
+}
+
+// Composicao de vendas por tipo de servico: o que foi vendido no periodo,
+// quantidade e valor por item, extraidos da discriminacao de servicos da
+// NFS-e. `grupo` (opcional) filtra pelo codigo do grupo economico, igual ao
+// usado na visao de clientes.
+export async function getComposicaoServicos(req: Request, res: Response): Promise<void> {
+    const de = parseDate(req.query.de);
+    const ate = parseDate(req.query.ate, true);
+    if (!de || !ate || de > ate) {
+        res.status(400).json({ message: 'Informe um período válido em de e ate (YYYY-MM-DD).' });
+        return;
+    }
+    const grupoFiltro = typeof req.query.grupo === 'string' && req.query.grupo.trim() ? normalize(req.query.grupo) : null;
+
+    try {
+        const { cadastroNotaFiscal } = await construirIndiceClientes();
+        const notas = await prisma.notaFiscalServico.findMany({
+            where: { dataCompetencia: { gte: de, lte: ate } },
+            select: {
+                id: true,
+                clienteDocumento: true,
+                clienteNome: true,
+                itens: {
+                    select: { descricao: true, descricaoNormalizada: true, quantidade: true, valorTotal: true, estruturado: true },
+                },
+            },
+        });
+
+        type Agregado = { descricao: string; quantidade: number; valorTotal: number; notas: Set<string>; estruturado: boolean };
+        const porServico = new Map<string, Agregado>();
+        let notasConsideradas = 0;
+
+        notas.forEach(nota => {
+            if (grupoFiltro) {
+                const cadastro = cadastroNotaFiscal(nota.clienteDocumento, nota.clienteNome);
+                const codigoGrupo = cadastro?.codigo?.trim() ? normalize(cadastro.codigo) : null;
+                if (codigoGrupo !== grupoFiltro) return;
+            }
+            notasConsideradas++;
+            nota.itens.forEach(item => {
+                const chave = item.estruturado ? item.descricaoNormalizada : '__nao_classificado__';
+                if (!porServico.has(chave)) porServico.set(chave, {
+                    descricao: item.estruturado ? item.descricao : 'Não classificado (texto livre da nota)',
+                    quantidade: 0, valorTotal: 0, notas: new Set(), estruturado: item.estruturado,
+                });
+                const agregado = porServico.get(chave)!;
+                agregado.quantidade += item.quantidade;
+                agregado.valorTotal += item.valorTotal;
+                agregado.notas.add(nota.id);
+            });
+        });
+
+        const valorTotal = Math.round([...porServico.values()].reduce((sum, item) => sum + item.valorTotal, 0) * 100) / 100;
+        const valorEstruturado = [...porServico.values()].filter(item => item.estruturado).reduce((sum, item) => sum + item.valorTotal, 0);
+
+        const servicos = [...porServico.values()]
+            .map(item => ({
+                descricao: item.descricao,
+                estruturado: item.estruturado,
+                quantidade: item.quantidade,
+                notas: item.notas.size,
+                valorTotal: Math.round(item.valorTotal * 100) / 100,
+                ticketMedio: item.quantidade > 0 ? item.valorTotal / item.quantidade : 0,
+                pctDoTotal: valorTotal > 0 ? item.valorTotal / valorTotal : 0,
+            }))
+            .sort((a, b) => b.valorTotal - a.valorTotal);
+
+        res.json({
+            periodo: { de: req.query.de, ate: req.query.ate },
+            grupo: req.query.grupo || null,
+            notasConsideradas,
+            valorTotal,
+            coberturaEstruturada: valorTotal > 0 ? valorEstruturado / valorTotal : 1,
+            servicos,
+        });
+    } catch (error: any) {
+        console.error('[Clientes] Falha ao montar composição de serviços:', error.message);
+        res.status(500).json({ message: 'Não foi possível carregar a composição de serviços.' });
     }
 }

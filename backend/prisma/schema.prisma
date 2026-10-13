@@ -110,12 +110,43 @@ model NotaFiscalServico {
   dataEmissao         DateTime
   dataCompetencia     DateTime
   valorBruto          Float
+  // Retencoes federais informadas pela propria NFS-e (colunas "Valor CSLL" e
+  // "Valor IR" do layout da prefeitura). Faturamento liquido = valorBruto -
+  // (valorCSLL + valorIR); o ISS fica de fora por decisao do financeiro, pois
+  // normalmente e pago via guia separada, nao retido pelo tomador.
+  valorCSLL           Float             @default(0)
+  valorIR             Float             @default(0)
+  // Texto livre da nota ("Discriminacao dos Servicos"). Uma mesma nota pode
+  // descrever varios servicos distintos separados por "|"; o detalhamento
+  // fica em `itens`.
+  descricaoServico    String?
   createdAt           DateTime          @default(now())
+  itens               ItemNotaFiscal[]
 
   @@unique([prestadorDocumento, numero])
   @@index([dataCompetencia])
   @@index([clienteDocumento])
   @@index([clienteNome])
+}
+
+// Um servico/exame dentro da discriminacao de uma nota, extraido por parsing
+// de texto livre (ex: "Swab 3 parametros - R$ 122,00  8  R$ 976,00"). Quando a
+// nota nao segue esse padrao, grava um unico item com `estruturado = false` e
+// valorTotal = valorBruto da nota, para nao perder o valor da analise de
+// composicao de vendas.
+model ItemNotaFiscal {
+  id                   String            @id @default(uuid())
+  notaId               String
+  nota                 NotaFiscalServico @relation(fields: [notaId], references: [id], onDelete: Cascade)
+  descricao            String
+  descricaoNormalizada String
+  quantidade           Float
+  valorUnitario        Float?
+  valorTotal           Float
+  estruturado          Boolean           @default(true)
+
+  @@index([notaId])
+  @@index([descricaoNormalizada])
 }
 
 model SaldoBancario {

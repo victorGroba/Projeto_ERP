@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { getClientesSyncStatus, getVisaoClientes, syncClientes } from '../controllers/clientesController';
+import { getClientesSyncStatus, getComposicaoServicos, getVisaoClientes, syncClientes } from '../controllers/clientesController';
 import { getImportacoesFiscais, uploadFaturamentoFiscal } from '../controllers/faturamentoFiscalController';
 
 const router = Router();
@@ -14,6 +14,7 @@ const fiscalUpload = multer({
 });
 
 router.get('/', authMiddleware, getVisaoClientes);
+router.get('/servicos', authMiddleware, getComposicaoServicos);
 router.get('/sync/status', authMiddleware, getClientesSyncStatus);
 router.post('/sync', authMiddleware, syncClientes);
 router.get('/faturamento-fiscal', authMiddleware, getImportacoesFiscais);

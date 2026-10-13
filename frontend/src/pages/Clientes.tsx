@@ -20,20 +20,33 @@ const fmtMesCurto = (value: string) => new Date(`${value}-01T12:00:00Z`).toLocal
 interface Cliente {
     id: string; codigo: string | null; nome: string; nomeEmpresa: string | null; documento: string | null;
     email: string | null; cidade: string | null; uf: string | null; ativo: boolean;
-    faturamento: number; recebido: number; aberto: number; titulos: number;
-    faturamentoAnterior: number; titulosAnterior: number;
+    faturamento: number; recebido: number; aberto: number; titulos: number; impostos: number;
+    faturamentoAnterior: number; titulosAnterior: number; impostosAnterior: number;
 }
 interface Grupo {
     codigo: string | null; clientes: Cliente[]; faturamento: number; recebido: number; aberto: number; titulos: number;
-    faturamentoAnterior: number; titulosAnterior: number;
+    impostos: number; faturamentoAnterior: number; titulosAnterior: number; impostosAnterior: number;
 }
 interface VisaoClientes {
     atualizadoEm: string | null;
     fiscal: { mesesImportados: string[]; mesesEsperados: string[]; mesesAusentes: string[]; notasNoPeriodo: number; naoConciliadasNoPeriodo: number; ultimaImportacao: string | null };
-    comparacao: { de: string; ate: string; mesesEsperados: string[]; mesesImportados: string[]; mesesAusentes: string[]; notasNoPeriodo: number; faturamento: number };
+    comparacao: { de: string; ate: string; mesesEsperados: string[]; mesesImportados: string[]; mesesAusentes: string[]; notasNoPeriodo: number; faturamento: number; impostos: number };
     serieMensal: { mes: string | null; mesAnterior: string | null; atual: number | null; anterior: number | null }[];
-    resumo: { cadastros: number; grupos: number; semCodigo: number; faturamentoSemCodigo: number; faturamento: number; recebido: number; aberto: number; titulos: number };
+    resumo: { cadastros: number; grupos: number; semCodigo: number; faturamentoSemCodigo: number; faturamento: number; impostos: number; recebido: number; aberto: number; titulos: number };
     grupos: Grupo[];
+}
+// Faturamento liquido = bruto - (CSLL + IR) retidos na propria NFS-e; ISS fica
+// de fora porque normalmente e pago via guia separada, nao retido pelo tomador.
+const liquido = (faturamento: number, impostos: number) => faturamento - impostos;
+const ticketMedio = (faturamento: number, titulos: number) => titulos > 0 ? faturamento / titulos : 0;
+
+interface ServicoComposicao {
+    descricao: string; estruturado: boolean; quantidade: number; notas: number;
+    valorTotal: number; ticketMedio: number; pctDoTotal: number;
+}
+interface ComposicaoServicos {
+    periodo: { de: string; ate: string }; grupo: string | null; notasConsideradas: number;
+    valorTotal: number; coberturaEstruturada: number; servicos: ServicoComposicao[];
 }
 
 type Tendencia = 'todos' | 'novos' | 'alta' | 'queda' | 'perdidos';
@@ -88,6 +101,9 @@ export default function Clientes() {
     const [importandoFiscal, setImportandoFiscal] = useState(false);
     const [importacoesFiscais, setImportacoesFiscais] = useState<ImportacaoFiscal[]>([]);
     const [somenteSemCodigo, setSomenteSemCodigo] = useState(false);
+    const [grupoComposicao, setGrupoComposicao] = useState('');
+    const [composicao, setComposicao] = useState<ComposicaoServicos | null>(null);
+    const [carregandoComposicao, setCarregandoComposicao] = useState(false);
     const fiscalInput = useRef<HTMLInputElement>(null);
     const ledgerRef = useRef<HTMLElement>(null);
 
@@ -146,6 +162,20 @@ export default function Clientes() {
     };
 
     useEffect(() => { void carregarImportacoesFiscais(); }, []);
+
+    const carregarComposicao = async (range = periodo, grupo = grupoComposicao) => {
+        setCarregandoComposicao(true);
+        try {
+            const response = await axios.get('/api/clientes/servicos', { params: { ...range, grupo: grupo || undefined } });
+            setComposicao(response.data);
+        } catch { /* a visao principal continua disponivel mesmo se essa falhar */ }
+        finally { setCarregandoComposicao(false); }
+    };
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => { void carregarComposicao(periodo, grupoComposicao); }, 350);
+        return () => window.clearTimeout(timer);
+    }, [periodo, grupoComposicao]);
 
     useEffect(() => {
         let active = true;
@@ -273,13 +303,17 @@ export default function Clientes() {
     const exportar = () => {
         if (!dados) return;
         const header = ['Código do grupo', 'Cliente', 'Empresa', 'CPF/CNPJ', 'E-mail', 'Cidade', 'UF', 'Ativo',
-            `Faturamento bruto ${periodo.de} a ${periodo.ate}`, `Faturamento bruto ${dados.comparacao.de} a ${dados.comparacao.ate}`, 'Variação %', 'Títulos'];
+            `Faturamento bruto ${periodo.de} a ${periodo.ate}`, `Faturamento bruto ${dados.comparacao.de} a ${dados.comparacao.ate}`, 'Variação %', 'Títulos',
+            'Imposto (CSLL+IR)', 'Faturamento líquido', 'Ticket médio'];
         const rows = gruposVisiveis.flatMap(grupo => grupo.clientes.map(cliente => [
             grupo.codigo || '', cliente.nome, cliente.nomeEmpresa, cliente.documento, cliente.email,
             cliente.cidade, cliente.uf, cliente.ativo ? 'Sim' : 'Não', cliente.faturamento.toFixed(2),
             cliente.faturamentoAnterior.toFixed(2),
             cliente.faturamentoAnterior > 0 ? (((cliente.faturamento - cliente.faturamentoAnterior) / cliente.faturamentoAnterior) * 100).toFixed(1) : '',
             cliente.titulos,
+            cliente.impostos.toFixed(2),
+            liquido(cliente.faturamento, cliente.impostos).toFixed(2),
+            ticketMedio(cliente.faturamento, cliente.titulos).toFixed(2),
         ]));
         const content = [header, ...rows].map(row => row.map(csvCell).join(';')).join('\n');
         const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' }));
@@ -388,6 +422,11 @@ export default function Clientes() {
                         {comparavel ? `vs ${fmt(dados.comparacao.faturamento)}` : 'sem dados fiscais na comparação'}
                     </small>
                 </article>
+                <article className="money">
+                    <WalletCards size={18} /><span>Faturamento líquido fiscal</span>
+                    <strong>{fmt(liquido(dados.resumo.faturamento, dados.resumo.impostos))}</strong>
+                    <small className="summary-compare">bruto − {fmt(dados.resumo.impostos)} de CSLL/IR retidos</small>
+                </article>
                 <article>
                     <TrendingUp size={18} /><span>Variação no período</span>
                     <strong className={!comparavel ? '' : dados.resumo.faturamento >= dados.comparacao.faturamento ? 'positive' : 'negative'}>
@@ -398,7 +437,7 @@ export default function Clientes() {
                 <button type="button" className={`summary-action${dados.resumo.semCodigo ? ' attention' : ''}${somenteSemCodigo ? ' active' : ''}`} onClick={alternarSemCodigo} aria-pressed={somenteSemCodigo}>
                     <AlertTriangle size={18} /><span>Clientes sem código</span><strong>{fmtNumber(dados.resumo.semCodigo)}</strong><small>{fmt(dados.resumo.faturamentoSemCodigo)} no período · clique para visualizar</small>
                 </button>
-                <article><UsersRound size={18} /><span>Cobertura fiscal</span><strong>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length}</strong><small>{fmtNumber(dados.resumo.titulos)} NFS-e · comparação {dados.comparacao.mesesImportados.length}/{dados.comparacao.mesesEsperados.length} meses</small></article>
+                <article><UsersRound size={18} /><span>Cobertura fiscal</span><strong>{dados.fiscal.mesesImportados.length}/{dados.fiscal.mesesEsperados.length}</strong><small>{fmtNumber(dados.resumo.titulos)} NFS-e · ticket médio {fmt(ticketMedio(dados.resumo.faturamento, dados.resumo.titulos))}</small></article>
             </section>
             {dados.fiscal.mesesAusentes.length > 0 && <div className="clientes-feedback warning"><AlertTriangle size={16} />
                 <span>Faturamento parcial: faltam os CSVs de {dados.fiscal.mesesAusentes.map(fmtMes).join(', ')}. Valores líquidos da API não são somados ao bruto.</span>
@@ -495,24 +534,65 @@ export default function Clientes() {
                             <button className="clientes-group-row compare" onClick={() => toggle(key)} aria-expanded={aberto}>
                                 <span className="clientes-chevron">{aberto ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</span>
                                 <span className={`clientes-code${grupo.codigo ? '' : ' missing'}`}>{grupo.codigo || 'Sem código'}</span>
-                                <span className="clientes-group-name"><strong>{grupo.clientes.length === 1 ? grupo.clientes[0].nomeEmpresa || grupo.clientes[0].nome : `${grupo.clientes.length} clientes vinculados`}</strong><small>{grupo.titulos} nota(s) · {grupo.titulosAnterior} na comparação</small></span>
+                                <span className="clientes-group-name"><strong>{grupo.clientes.length === 1 ? grupo.clientes[0].nomeEmpresa || grupo.clientes[0].nome : `${grupo.clientes.length} clientes vinculados`}</strong><small>{grupo.titulos} nota(s) · ticket médio {fmt(ticketMedio(grupo.faturamento, grupo.titulos))}</small></span>
                                 <span className="previous-value">{comparavel ? fmt(grupo.faturamentoAnterior) : '—'}</span>
-                                <span><strong>{fmt(grupo.faturamento)}</strong></span>
+                                <span><strong>{fmt(grupo.faturamento)}</strong><small>líquido {fmt(liquido(grupo.faturamento, grupo.impostos))}</small></span>
                                 <span><Variacao atual={grupo.faturamento} anterior={grupo.faturamentoAnterior} comparavel={comparavel} /></span>
                             </button>
                             {aberto && <div className="clientes-detail-wrap"><table>
-                                <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Contato</th><th>Local</th><th>Comparação</th><th>Período</th><th>Variação</th></tr></thead>
+                                <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Contato</th><th>Local</th><th>Comparação</th><th>Período (bruto)</th><th>Imposto</th><th>Líquido</th><th>Variação</th></tr></thead>
                                 <tbody>{grupo.clientes.map(cliente => <tr key={cliente.id}>
                                     <td><strong>{cliente.nomeEmpresa || cliente.nome}</strong>{cliente.nomeEmpresa && <small>{cliente.nome}</small>}</td>
                                     <td>{cliente.documento || '—'}</td><td>{cliente.email || '—'}</td><td>{[cliente.cidade, cliente.uf].filter(Boolean).join(' / ') || '—'}</td>
                                     <td>{comparavel ? fmt(cliente.faturamentoAnterior) : '—'}</td>
                                     <td>{fmt(cliente.faturamento)}</td>
+                                    <td>{fmt(cliente.impostos)}</td>
+                                    <td>{fmt(liquido(cliente.faturamento, cliente.impostos))}</td>
                                     <td><Variacao atual={cliente.faturamento} anterior={cliente.faturamentoAnterior} comparavel={comparavel} /></td>
                                 </tr>)}</tbody>
                             </table></div>}
                         </div>;
                     })}
             </section>
+
+            <article className="compare-card">
+                <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div><h3>Composição de vendas por serviço</h3><p>O que foi vendido no período, extraído da discriminação de cada NFS-e</p></div>
+                    <select
+                        value={grupoComposicao}
+                        onChange={event => setGrupoComposicao(event.target.value)}
+                        style={{ minWidth: 220, padding: '.5rem .65rem', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', background: 'var(--surface)', fontSize: '.8125rem' }}
+                    >
+                        <option value="">Todos os grupos</option>
+                        {[...dados.grupos].filter(g => g.codigo).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
+                            .map(g => <option key={g.codigo} value={g.codigo || ''}>{g.codigo}</option>)}
+                    </select>
+                </header>
+                {carregandoComposicao || !composicao
+                    ? <div className="clientes-empty small"><Loader2 size={18} className="animate-spin" /> Carregando composição…</div>
+                    : composicao.servicos.length === 0
+                        ? <div className="clientes-empty small">Nenhum serviço encontrado no período{composicao.grupo ? ` para o grupo ${composicao.grupo}` : ''}.</div>
+                        : <>
+                            {composicao.coberturaEstruturada < 0.95 && <div className="clientes-feedback warning" style={{ marginBottom: '.75rem' }}>
+                                <AlertTriangle size={16} />
+                                <span>{((1 - composicao.coberturaEstruturada) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% do valor vem de notas com descrição em texto livre, sem detalhamento por item (bucket "Não classificado").</span>
+                            </div>}
+                            <div className="bridge">
+                                {composicao.servicos.slice(0, 30).map(servico => <div className="bridge-row" key={servico.descricao} style={{ cursor: 'default' }}>
+                                    <span className="bridge-label">
+                                        <strong>{servico.descricao}</strong>
+                                        <small>{fmtNumber(servico.quantidade)} un. · {servico.notas} nota(s) · ticket médio {fmt(servico.ticketMedio)}</small>
+                                    </span>
+                                    <span className="bridge-track"><span className="bridge-bar positive" style={{ width: `${Math.max(2, servico.pctDoTotal * 100)}%` }} /></span>
+                                    <span className="bridge-value positive">{fmt(servico.valorTotal)}</span>
+                                </div>)}
+                            </div>
+                            <div className="bridge-total">
+                                <span>{composicao.servicos.length > 30 ? `Exibindo os 30 maiores de ${composicao.servicos.length} serviços` : `${composicao.servicos.length} serviço(s)`} · {fmtNumber(composicao.notasConsideradas)} nota(s)</span>
+                                <strong>{fmt(composicao.valorTotal)}</strong>
+                            </div>
+                        </>}
+            </article>
         </>}
         {loading && !dados && <div className="clientes-empty"><Loader2 size={18} className="animate-spin" /> Carregando clientes…</div>}
     </div>;

@@ -41,7 +41,7 @@
 .clientes-feedback.error { color: var(--danger-hover); background: var(--danger-light); border-color: var(--danger-border); }
 .clientes-feedback.warning { display: flex; align-items: center; gap: .45rem; color: var(--warning-hover); background: var(--warning-light); border-color: #fde68a; }
 
-.clientes-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.clientes-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .clientes-summary article, .clientes-summary .summary-action { min-height: 108px; padding: 1.1rem 1.25rem; display: grid; grid-template-columns: 1fr auto; align-content: center; gap: .25rem; border: 0; border-right: 1px solid var(--border); color: var(--text-main); background: var(--surface); text-align: left; }
 .clientes-summary article:last-child { border-right: 0; }
 .clientes-summary article > svg, .clientes-summary .summary-action > svg { color: var(--primary); grid-column: 2; grid-row: 1 / span 2; align-self: center; }
