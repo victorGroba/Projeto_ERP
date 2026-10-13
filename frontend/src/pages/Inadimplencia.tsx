@@ -145,7 +145,7 @@ const Inadimplencia: React.FC = () => {
 
                     {/* Threshold */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Min.:</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600 }}>Mín.:</span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>R$</span>
                         <input type="number" value={thresholdInput}
                             onChange={e => setThresholdInput(e.target.value)}
@@ -311,7 +311,7 @@ const Inadimplencia: React.FC = () => {
                             { label: 'Período B', de: compDeB, setDe: setCompDeB, ate: compAteB, setAte: setCompAteB, cor: '#0b6b76', bg: '#e6f1f1' },
                         ].map(p => (
                             <div key={p.label} style={{ background: 'var(--surface)', border: `2px solid ${p.cor}22`, borderRadius: 'var(--radius-lg)', padding: '1.125rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: p.cor, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 76 }}>{p.label}</span>
+                                <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: p.cor, minWidth: 84 }}>{p.label}</span>
                                 <input type="date" value={p.de} onChange={e => p.setDe(e.target.value)} className="date-input" style={{ borderColor: `${p.cor}44` }} />
                                 <span style={{ color: 'var(--text-subtle)' }}>→</span>
                                 <input type="date" value={p.ate} onChange={e => p.setAte(e.target.value)} className="date-input" style={{ borderColor: `${p.cor}44` }} />
@@ -392,7 +392,7 @@ const TabelaIndividual: React.FC<{
             {/* Cabeçalho */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 130px 80px 60px', padding: '0.625rem 1.75rem', background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
                 {['Cliente', 'Total em Aberto', 'Títulos', 'Dias'].map((h, i) => (
-                    <span key={h} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: i === 0 ? 'left' : 'right' }}>{h}</span>
+                    <span key={h} style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: i === 0 ? 'left' : 'right' }}>{h}</span>
                 ))}
             </div>
 
@@ -424,7 +424,7 @@ const TabelaIndividual: React.FC<{
                                 {/* Mini-header */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 110px 60px', padding: '0.5rem 1.75rem 0.5rem 3.5rem', borderBottom: '1px solid var(--border)' }}>
                                     {['Vencimento', 'Descrição / NF', 'Valor', 'Atraso'].map((h, i) => (
-                                        <span key={h} style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</span>
+                                        <span key={h} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-subtle)', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</span>
                                     ))}
                                 </div>
                                 {dev.titulos.map((t, ti) => (
@@ -461,16 +461,16 @@ const ComparativoView: React.FC<{ data: any; threshold: number }> = ({ data, thr
     const KpiComp = ({ label, vA, vB }: { label: string; vA: number; vB: number }) => {
         const var_ = vA > 0 ? ((vB - vA) / vA) * 100 : null;
         return (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.125rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem 1.375rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</span>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                     <div>
-                        <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 700, marginBottom: 2 }}>Período A</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>{fmtS(vA)}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, marginBottom: 2 }}>Período A</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>{fmtS(vA)}</div>
                     </div>
                     <div>
-                        <div style={{ fontSize: '0.7rem', color: '#0b6b76', fontWeight: 700, marginBottom: 2 }}>Período B</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>{fmtS(vB)}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#0b6b76', fontWeight: 700, marginBottom: 2 }}>Período B</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>{fmtS(vB)}</div>
                     </div>
                 </div>
                 {var_ !== null && (
@@ -490,7 +490,7 @@ const ComparativoView: React.FC<{ data: any; threshold: number }> = ({ data, thr
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {[periodoA, periodoB].map((p: any, i: number) => (
                     <div key={i} style={{ padding: '0.625rem 1rem', background: i === 0 ? '#f5f3ff' : '#e6f1f1', borderRadius: 'var(--radius-md)', borderLeft: `3px solid ${i === 0 ? '#7c3aed' : '#0b6b76'}` }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: i === 0 ? '#7c3aed' : '#0b6b76', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Período {i === 0 ? 'A' : 'B'}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: i === 0 ? '#7c3aed' : '#0b6b76' }}>Período {i === 0 ? 'A' : 'B'}</span>
                         <span style={{ fontSize: '0.875rem', color: 'var(--text-main)', marginLeft: '0.75rem' }}>{p.label}</span>
                     </div>
                 ))}

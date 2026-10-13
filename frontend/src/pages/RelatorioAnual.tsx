@@ -2,13 +2,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
     Loader2, Inbox, FileText, ChevronDown, ChevronRight,
-    TrendingUp, Layers, Briefcase, Calculator,
+    TrendingUp, Layers, Briefcase, Calculator, BarChart3,
     Upload, History, Trash2, CheckCircle2,
 } from 'lucide-react';
 import Delta from '../components/Delta';
+import ComparativoBarTable from '../components/ComparativoBarTable';
 import './Dashboard.css';
 import '../styles/painel.css';
 import './RelatorioAnual.css';
+
+// Mesma paleta usada em Resultados (Diretoria): petróleo = período atual,
+// cinza neutro = período de comparação — consistente em todo o sistema.
+const COLOR_ATUAL = '#0b6b76';
+const COLOR_ANTERIOR = '#c3d1d1';
 
 const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -244,6 +250,54 @@ const RelatorioAnual: React.FC = () => {
         </>
     );
 
+    // Visão rápida em gráfico, antes do detalhe em tabela — o que antes era só
+    // planilha ganha uma leitura de "quem pesa mais" num relance.
+    const renderComparativoChart = (
+        titulo: string,
+        itens: { categoria: string; valorA: number; valorB: number; variacao: number | null }[],
+        total?: { categoria: string; valorA: number; valorB: number; variacao: number | null },
+    ) => {
+        if (itens.length === 0) return null;
+        const maior = Math.max(0, ...itens.flatMap(i => [i.valorA, i.valorB]));
+        const escala = maior >= 10_000 ? 1000 : 1;
+        const labelAtual = String(anoAtual);
+        const labelAnterior = String(anoAnterior);
+        return (
+            <section className="res-panel" style={{ marginBottom: '0.75rem' }}>
+                <div className="res-panel-head">
+                    <h3>
+                        <BarChart3 size={16} color="var(--primary)" />
+                        {titulo}
+                        {escala === 1000 && <span className="res-hint">· Valores em milhares de R$</span>}
+                    </h3>
+                    <div className="res-legend">
+                        <span><i style={{ background: COLOR_ATUAL }} />{labelAtual}</span>
+                        <span><i style={{ background: COLOR_ANTERIOR }} />{labelAnterior}</span>
+                    </div>
+                </div>
+                <div className="res-chart-body">
+                    <ComparativoBarTable
+                        itens={itens}
+                        total={total}
+                        labelA={labelAtual}
+                        labelB={labelAnterior}
+                        colorCurrent={COLOR_ATUAL}
+                        colorPrevious={COLOR_ANTERIOR}
+                        escala={escala}
+                    />
+                </div>
+            </section>
+        );
+    };
+
+    const ccGroupChart = (group: CCGroup, titulo: string) => renderComparativoChart(
+        titulo,
+        group.centrosDeCusto.map(cc => ({ categoria: cc.nome, valorA: cc.total.totalAnterior, valorB: cc.total.totalAtual, variacao: cc.total.variacao })),
+        group.centrosDeCusto.length > 1
+            ? { categoria: 'Total', valorA: group.total.totalAnterior, valorB: group.total.totalAtual, variacao: group.total.variacao }
+            : undefined,
+    );
+
     const SectionHead: React.FC<{
         sectionKey: string; icon: React.ReactNode; title: string;
         totalAnterior?: number; totalAtual?: number; isExpense?: boolean;
@@ -346,8 +400,8 @@ const RelatorioAnual: React.FC = () => {
                                                     display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
                                                     padding: '0.125rem 0.5rem', borderRadius: '1rem', fontSize: '0.6875rem',
                                                     fontWeight: 700, letterSpacing: '0.03em',
-                                                    background: h.tipo === 'ENTRADAS' ? 'color-mix(in srgb, #059669 12%, transparent)' : 'color-mix(in srgb, #dc2626 12%, transparent)',
-                                                    color: h.tipo === 'ENTRADAS' ? '#059669' : '#dc2626',
+                                                    background: h.tipo === 'ENTRADAS' ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'color-mix(in srgb, var(--danger) 12%, transparent)',
+                                                    color: h.tipo === 'ENTRADAS' ? 'var(--success)' : 'var(--danger)',
                                                 }}>
                                                     <CheckCircle2 size={11} />
                                                     {h.tipo}
@@ -393,9 +447,9 @@ const RelatorioAnual: React.FC = () => {
 
                     {/* KPIs */}
                     <div className="rel-kpis">
-                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: '#059669' }}>
+                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: 'var(--success)' }}>
                             <span className="rel-kpi-label">Total Entradas {anoAtual}</span>
-                            <div className="rel-kpi-value" style={{ color: '#059669' }}>
+                            <div className="rel-kpi-value" style={{ color: 'var(--success)' }}>
                                 {fmt(data.entradas.total.totalAtual)}
                             </div>
                             <div className="rel-kpi-foot">
@@ -404,9 +458,9 @@ const RelatorioAnual: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: '#dc2626' }}>
+                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: 'var(--danger)' }}>
                             <span className="rel-kpi-label">Total Mats/Serv {anoAtual}</span>
-                            <div className="rel-kpi-value" style={{ color: '#dc2626' }}>
+                            <div className="rel-kpi-value" style={{ color: 'var(--danger)' }}>
                                 {fmt(-data.materiaisServicos.total.totalAtual)}
                             </div>
                             <div className="rel-kpi-foot">
@@ -415,9 +469,9 @@ const RelatorioAnual: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: '#e97316' }}>
+                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: 'var(--warning)' }}>
                             <span className="rel-kpi-label">Total Despesas {anoAtual}</span>
-                            <div className="rel-kpi-value" style={{ color: '#e97316' }}>
+                            <div className="rel-kpi-value" style={{ color: 'var(--warning)' }}>
                                 {fmt(-data.despesas.total.totalAtual)}
                             </div>
                             <div className="rel-kpi-foot">
@@ -426,9 +480,9 @@ const RelatorioAnual: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: data.resultadoOperacional.totalAtual >= 0 ? '#059669' : '#dc2626' }}>
+                        <div className="rel-kpi" style={{ ['--kpi-accent' as any]: data.resultadoOperacional.totalAtual >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                             <span className="rel-kpi-label">Resultado Operacional {anoAtual}</span>
-                            <div className="rel-kpi-value" style={{ color: data.resultadoOperacional.totalAtual >= 0 ? '#059669' : '#dc2626' }}>
+                            <div className="rel-kpi-value" style={{ color: data.resultadoOperacional.totalAtual >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                 {fmt(data.resultadoOperacional.totalAtual)}
                             </div>
                             <div className="rel-kpi-foot">
@@ -442,16 +496,25 @@ const RelatorioAnual: React.FC = () => {
                     <div className="rel-section">
                         <SectionHead
                             sectionKey="entradas"
-                            icon={<TrendingUp size={16} color="#059669" />}
+                            icon={<TrendingUp size={16} color="var(--success)" />}
                             title="Entradas"
                             totalAnterior={data.entradas.total.totalAnterior}
                             totalAtual={data.entradas.total.totalAtual}
                         />
-                        {openSections.entradas && renderTable(
-                            data.entradas.categorias,
-                            data.entradas.total,
-                            'Total das Entradas',
-                            false
+                        {openSections.entradas && (
+                            <>
+                                {renderComparativoChart(
+                                    'Entradas por categoria',
+                                    data.entradas.categorias.map(r => ({ categoria: r.categoria, valorA: r.totalAnterior, valorB: r.totalAtual, variacao: r.variacao })),
+                                    { categoria: 'Total', valorA: data.entradas.total.totalAnterior, valorB: data.entradas.total.totalAtual, variacao: data.entradas.total.variacao },
+                                )}
+                                {renderTable(
+                                    data.entradas.categorias,
+                                    data.entradas.total,
+                                    'Total das Entradas',
+                                    false
+                                )}
+                            </>
                         )}
                     </div>
 
@@ -459,26 +522,36 @@ const RelatorioAnual: React.FC = () => {
                     <div className="rel-section">
                         <SectionHead
                             sectionKey="matsServ"
-                            icon={<Layers size={16} color="#dc2626" />}
+                            icon={<Layers size={16} color="var(--danger)" />}
                             title="Materiais e Serviços"
                             totalAnterior={data.materiaisServicos.total.totalAnterior}
                             totalAtual={data.materiaisServicos.total.totalAtual}
                             isExpense
                         />
-                        {openSections.matsServ && renderCCGroup(data.materiaisServicos, 'Total Mats/Serv')}
+                        {openSections.matsServ && (
+                            <>
+                                {ccGroupChart(data.materiaisServicos, 'Materiais e Serviços por centro de custo')}
+                                {renderCCGroup(data.materiaisServicos, 'Total Mats/Serv')}
+                            </>
+                        )}
                     </div>
 
                     {/* DESPESAS */}
                     <div className="rel-section">
                         <SectionHead
                             sectionKey="despesas"
-                            icon={<Briefcase size={16} color="#e97316" />}
+                            icon={<Briefcase size={16} color="var(--warning)" />}
                             title="Despesas"
                             totalAnterior={data.despesas.total.totalAnterior}
                             totalAtual={data.despesas.total.totalAtual}
                             isExpense
                         />
-                        {openSections.despesas && renderCCGroup(data.despesas, 'Total Despesas')}
+                        {openSections.despesas && (
+                            <>
+                                {ccGroupChart(data.despesas, 'Despesas por centro de custo')}
+                                {renderCCGroup(data.despesas, 'Total Despesas')}
+                            </>
+                        )}
                     </div>
 
                     {/* OUTROS (se houver CCs não classificados) */}
@@ -492,7 +565,12 @@ const RelatorioAnual: React.FC = () => {
                                 totalAtual={data.outros.total.totalAtual}
                                 isExpense
                             />
-                            {openSections.outros && renderCCGroup(data.outros, 'Total Outros')}
+                            {openSections.outros && (
+                                <>
+                                    {ccGroupChart(data.outros, 'Outros centros de custo')}
+                                    {renderCCGroup(data.outros, 'Total Outros')}
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -547,10 +625,10 @@ const RelatorioAnual: React.FC = () => {
                                             <Calculator size={16} color="var(--primary)" />
                                             Resultado Operacional
                                         </td>
-                                        <td style={{ color: data.resultadoOperacional.totalAnterior >= 0 ? '#059669' : '#dc2626' }}>
+                                        <td style={{ color: data.resultadoOperacional.totalAnterior >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                             {fmt(data.resultadoOperacional.totalAnterior)}
                                         </td>
-                                        <td style={{ color: data.resultadoOperacional.totalAtual >= 0 ? '#059669' : '#dc2626' }}>
+                                        <td style={{ color: data.resultadoOperacional.totalAtual >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                             {fmt(data.resultadoOperacional.totalAtual)}
                                         </td>
                                         <td><Delta pct={data.resultadoOperacional.variacao} inverso /></td>

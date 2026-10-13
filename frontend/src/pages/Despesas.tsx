@@ -257,7 +257,7 @@ const Despesas: React.FC = () => {
 
             {isLoading ? (
                 <div className="loading-state">
-                    <div className="animate-spin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(37, 99, 235, 0.2)', borderTopColor: 'var(--primary)', marginBottom: '1rem' }}></div>
+                    <div className="animate-spin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '50%', border: '3px solid color-mix(in srgb, var(--primary) 20%, transparent)', borderTopColor: 'var(--primary)', marginBottom: '1rem' }}></div>
                     <span style={{ marginLeft: '1rem' }}>Processando motor matricial...</span>
                 </div>
             ) : (
@@ -402,9 +402,9 @@ const Despesas: React.FC = () => {
 
                             {/* Tabela header */}
                             <div style={{ overflowX: 'auto' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 130px 90px', minWidth: 720, padding: '0.625rem 1.5rem', background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 130px 90px', minWidth: 720, padding: '0.75rem 1.5rem', background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
                                     {['Centro de Custo / Categoria', periodoAnteriorShort, periodoAtualShort, 'Evolução', 'Var %'].map((h, i) => (
-                                        <span key={h} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: i === 0 ? 'left' : 'right' }}>{h}</span>
+                                        <span key={h} style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: i === 0 ? 'left' : 'right' }}>{h}</span>
                                     ))}
                                 </div>
 
@@ -423,21 +423,21 @@ const Despesas: React.FC = () => {
                                                 onClick={() => toggleCC(cc.centroDeCusto)}
                                                 style={{
                                                     width: '100%', display: 'grid', gridTemplateColumns: '1fr 130px 130px 130px 90px',
-                                                    padding: '0.875rem 1.5rem', background: isOpen ? 'var(--primary-light)' : 'var(--surface)',
+                                                    padding: '1rem 1.5rem', background: isOpen ? 'var(--primary-light)' : 'var(--surface)',
                                                     border: 'none', cursor: 'pointer', transition: 'background 0.15s', alignItems: 'center',
                                                 }}
                                             >
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9375rem', fontWeight: 700, color: isOpen ? 'var(--primary)' : 'var(--text-main)', textAlign: 'left' }}>
-                                                    {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 700, color: isOpen ? 'var(--primary)' : 'var(--text-main)', textAlign: 'left' }}>
+                                                    {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                                     {cc.centroDeCusto}
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 400 }}>({cc.categorias.length} categorias)</span>
+                                                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-subtle)', fontWeight: 400 }}>({cc.categorias.length} categorias)</span>
                                                 </span>
-                                                <span style={{ textAlign: 'right', fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>{formatCurrency(cc.totalAnterior)}</span>
-                                                <span style={{ textAlign: 'right', fontSize: '0.9375rem', color: 'var(--text-main)', fontWeight: 700 }}>{formatCurrency(cc.totalAtual)}</span>
-                                                <span style={{ textAlign: 'right', fontSize: '0.8125rem', fontWeight: 600, color: ccEvolucaoRS > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                                <span style={{ textAlign: 'right', fontSize: '0.9375rem', color: 'var(--text-muted)', fontWeight: 500 }}>{formatCurrency(cc.totalAnterior)}</span>
+                                                <span style={{ textAlign: 'right', fontSize: '1rem', color: 'var(--text-main)', fontWeight: 700 }}>{formatCurrency(cc.totalAtual)}</span>
+                                                <span style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 600, color: ccEvolucaoRS > 0 ? 'var(--danger)' : 'var(--success)' }}>
                                                     {ccEvolucaoRS > 0 ? '+' : ''}{formatCurrency(ccEvolucaoRS)}
                                                 </span>
-                                                <span style={{ textAlign: 'right', fontSize: '0.8125rem', fontWeight: 700, color: ccIsNova ? 'var(--text-subtle)' : varColor }}>
+                                                <span style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 700, color: ccIsNova ? 'var(--text-subtle)' : varColor }}>
                                                     {ccIsNova ? 'novo' : `${varPct > 0 ? '+' : ''}${varPct.toFixed(1)}%`}
                                                 </span>
                                             </button>
@@ -454,39 +454,39 @@ const Despesas: React.FC = () => {
                                                                 key={cat.categoria}
                                                                 style={{
                                                                     display: 'grid', gridTemplateColumns: '1fr 130px 130px 130px 90px',
-                                                                    padding: '0.5rem 1.5rem 0.5rem 3rem',
+                                                                    padding: '0.625rem 1.5rem 0.625rem 3rem',
                                                                     borderTop: '1px solid var(--border)',
                                                                     background: i % 2 === 0 ? 'var(--background)' : 'var(--surface)',
                                                                     alignItems: 'center',
                                                                 }}
                                                             >
-                                                                <span style={{ fontSize: '0.8125rem', color: 'var(--text-main)', fontWeight: 500 }}>
+                                                                <span style={{ fontSize: '0.875rem', color: 'var(--text-main)', fontWeight: 500 }}>
                                                                     {cat.categoria}
                                                                 </span>
-                                                                <span style={{ textAlign: 'right', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                                                                <span style={{ textAlign: 'right', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                                                                     {cat.anterior > 0 ? formatCurrency(cat.anterior) : '—'}
                                                                 </span>
-                                                                <span style={{ textAlign: 'right', fontSize: '0.8125rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                                                                <span style={{ textAlign: 'right', fontSize: '0.875rem', color: 'var(--text-main)', fontWeight: 600 }}>
                                                                     {cat.atual > 0 ? formatCurrency(cat.atual) : '—'}
                                                                 </span>
-                                                                <span style={{ textAlign: 'right', fontSize: '0.8125rem', fontWeight: 600, color: catEvolucaoRS > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                                                <span style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 600, color: catEvolucaoRS > 0 ? 'var(--danger)' : 'var(--success)' }}>
                                                                     {catEvolucaoRS !== 0 ? `${catEvolucaoRS > 0 ? '+' : ''}${formatCurrency(catEvolucaoRS)}` : '—'}
                                                                 </span>
-                                                                <span style={{ textAlign: 'right', fontSize: '0.8125rem', fontWeight: 600, color: cat.anterior === 0 ? 'var(--text-subtle)' : catColor }}>
+                                                                <span style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 600, color: cat.anterior === 0 ? 'var(--text-subtle)' : catColor }}>
                                                                     {cat.anterior === 0 ? 'novo' : `${catVar > 0 ? '+' : ''}${catVar.toFixed(1)}%`}
                                                                 </span>
                                                             </div>
                                                         );
                                                     })}
                                                     {/* Total row */}
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 130px 90px', padding: '0.625rem 1.5rem 0.625rem 3rem', borderTop: '2px solid var(--border)', background: 'var(--primary-light)', alignItems: 'center' }}>
-                                                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--primary)' }}>Total {cc.centroDeCusto}</span>
-                                                        <span style={{ textAlign: 'right', fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{formatCurrency(cc.totalAnterior)}</span>
-                                                        <span style={{ textAlign: 'right', fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 700 }}>{formatCurrency(cc.totalAtual)}</span>
-                                                        <span style={{ textAlign: 'right', fontSize: '0.8125rem', fontWeight: 700, color: ccEvolucaoRS > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 130px 90px', padding: '0.75rem 1.5rem 0.75rem 3rem', borderTop: '2px solid var(--border)', background: 'var(--primary-light)', alignItems: 'center' }}>
+                                                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--primary)' }}>Total {cc.centroDeCusto}</span>
+                                                        <span style={{ textAlign: 'right', fontSize: '0.9375rem', color: 'var(--text-muted)', fontWeight: 600 }}>{formatCurrency(cc.totalAnterior)}</span>
+                                                        <span style={{ textAlign: 'right', fontSize: '0.9375rem', color: 'var(--primary)', fontWeight: 700 }}>{formatCurrency(cc.totalAtual)}</span>
+                                                        <span style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 700, color: ccEvolucaoRS > 0 ? 'var(--danger)' : 'var(--success)' }}>
                                                             {ccEvolucaoRS > 0 ? '+' : ''}{formatCurrency(ccEvolucaoRS)}
                                                         </span>
-                                                        <span style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 700, color: ccIsNova ? 'var(--text-subtle)' : varColor }}>
+                                                        <span style={{ textAlign: 'right', fontSize: '0.9375rem', fontWeight: 700, color: ccIsNova ? 'var(--text-subtle)' : varColor }}>
                                                             {ccIsNova ? 'novo' : `${varPct > 0 ? '+' : ''}${varPct.toFixed(1)}%`}
                                                         </span>
                                                     </div>

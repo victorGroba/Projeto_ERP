@@ -84,7 +84,7 @@ const EvolucaoMensal: React.FC = () => {
                     <p>Evolução Mensal · Distribuição de Lucros · Caixa & Bancos</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Período:</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9375rem', fontWeight: 600 }}>Período:</span>
                     <select
                         value={year}
                         onChange={e => setYear(Number(e.target.value))}
@@ -126,7 +126,7 @@ const EvolucaoMensal: React.FC = () => {
                             </div>
                             <div className="kpi-content">
                                 <h4>Média Mensal ({mesesComDados} meses)</h4>
-                                <h2 style={{ fontSize: '1.4rem' }}>{formatCurrency(mediaMensal)}</h2>
+                                <h2>{formatCurrency(mediaMensal)}</h2>
                             </div>
                         </div>
                         <div className="kpi-card">
@@ -146,7 +146,7 @@ const EvolucaoMensal: React.FC = () => {
                             </div>
                             <div className="kpi-content">
                                 <h4>Distribuição de Lucros</h4>
-                                <h2 style={{ fontSize: '1.4rem', color: '#7c3aed' }}>{formatCurrency(totalLucros)}</h2>
+                                <h2 style={{ color: '#7c3aed' }}>{formatCurrency(totalLucros)}</h2>
                             </div>
                         </div>
                     </div>
@@ -273,8 +273,8 @@ const EvolucaoMensal: React.FC = () => {
                                 <h3>Resultado Financeiro Mensal — {year}</h3>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase' }}>Resultado do Ano</div>
-                                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: resultadoAno >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-subtle)' }}>Resultado do ano</div>
+                                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 800, color: resultadoAno >= 0 ? 'var(--success)' : 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>
                                     {resultadoAno >= 0 ? '+' : ''}{formatCurrency(resultadoAno)}
                                 </div>
                             </div>

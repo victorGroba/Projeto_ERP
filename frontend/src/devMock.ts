@@ -24,6 +24,19 @@ function matchMock(url: string): any | null {
             ],
         };
     }
+    if (url.includes('/api/dashboard/inadimplencia/comparativo')) {
+        return {
+            periodoA: { label: '01/01/2025 – 30/06/2025', totalAtraso: 142800, aVencer: 81200, aging: { mais_de_90: 38900 } },
+            periodoB: { label: '01/01/2026 – 13/10/2026', totalAtraso: 184320.5, aVencer: 96500, aging: { mais_de_90: 62480 } },
+            tabelaComparativa: [
+                { cliente: 'Hospital Santa Clara (Grupo)', valorA: 35600, valorB: 42500, variacao: 19.4 },
+                { cliente: 'Convênio Vida Plena', valorA: 28100, valorB: 31200, variacao: 11.0 },
+                { cliente: 'Clínica BioSaúde', valorA: 26400, valorB: 24800, variacao: -6.1 },
+                { cliente: 'UPA Jardim das Flores', valorA: 0, valorB: 18900, variacao: null },
+                { cliente: 'Convênio Saúde Total', valorA: 19800, valorB: 15600, variacao: -21.2 },
+            ],
+        };
+    }
     if (url.includes('/api/dashboard/despesas/resumo-periodo')) {
         return {
             categorias: [
@@ -168,6 +181,234 @@ function matchMock(url: string): any | null {
     }
     if (url.includes('/api/sync/status')) {
         return { ultimoSync: { em: new Date(Date.now() - 3 * 3600_000).toISOString(), modo: 'automático' } };
+    }
+    if (url.includes('/api/dashboard/relatorio-anual')) {
+        const cc = (nome: string, categorias: { categoria: string; totalAnterior: number; totalAtual: number; variacao: number }[]) => {
+            const totalAnterior = categorias.reduce((s, c) => s + c.totalAnterior, 0);
+            const totalAtual = categorias.reduce((s, c) => s + c.totalAtual, 0);
+            return { nome, categorias, total: { totalAnterior, totalAtual, variacao: (totalAtual - totalAnterior) / totalAnterior * 100 } };
+        };
+        const grupo = (centrosDeCusto: ReturnType<typeof cc>[]) => {
+            const totalAnterior = centrosDeCusto.reduce((s, c) => s + c.total.totalAnterior, 0);
+            const totalAtual = centrosDeCusto.reduce((s, c) => s + c.total.totalAtual, 0);
+            return { centrosDeCusto, total: { totalAnterior, totalAtual, variacao: (totalAtual - totalAnterior) / totalAnterior * 100 } };
+        };
+        const entradasCategorias = [
+            { categoria: 'Convênios', totalAnterior: 820000, totalAtual: 980000, variacao: 19.5 },
+            { categoria: 'Particular', totalAnterior: 410000, totalAtual: 462000, variacao: 12.7 },
+            { categoria: 'SUS / Prefeitura', totalAnterior: 260000, totalAtual: 298000, variacao: 14.6 },
+            { categoria: 'Empresas (Ocupacional)', totalAnterior: 180000, totalAtual: 214000, variacao: 18.9 },
+        ];
+        const entradasTotal = {
+            totalAnterior: entradasCategorias.reduce((s, c) => s + c.totalAnterior, 0),
+            totalAtual: entradasCategorias.reduce((s, c) => s + c.totalAtual, 0),
+            variacao: 17.0,
+        };
+        const materiaisServicos = grupo([
+            cc('Laboratório Central', [
+                { categoria: 'Reagentes e Insumos', totalAnterior: 240000, totalAtual: 278000, variacao: 15.8 },
+                { categoria: 'Materiais de Consumo', totalAnterior: 72000, totalAtual: 81000, variacao: 12.5 },
+            ]),
+            cc('Unidade Coleta — Centro', [
+                { categoria: 'Materiais de Consumo', totalAnterior: 50000, totalAtual: 58000, variacao: 16.0 },
+            ]),
+        ]);
+        const despesas = grupo([
+            cc('Laboratório Central', [
+                { categoria: 'Pessoal Técnico', totalAnterior: 210000, totalAtual: 235000, variacao: 11.9 },
+                { categoria: 'Manutenção de Equipamentos', totalAnterior: 58000, totalAtual: 64000, variacao: 10.3 },
+                { categoria: 'Serviços Terceirizados', totalAnterior: 40000, totalAtual: 54000, variacao: 35.0 },
+            ]),
+            cc('Unidade Coleta — Centro', [
+                { categoria: 'Pessoal de Coleta', totalAnterior: 140000, totalAtual: 161000, variacao: 15.0 },
+                { categoria: 'Logística de Coleta', totalAnterior: 70000, totalAtual: 79000, variacao: 12.9 },
+            ]),
+            cc('Unidade Coleta — Zona Sul', [
+                { categoria: 'Pessoal de Coleta', totalAnterior: 82000, totalAtual: 94000, variacao: 14.6 },
+                { categoria: 'Logística de Coleta', totalAnterior: 41000, totalAtual: 48000, variacao: 17.1 },
+            ]),
+            cc('Administrativo', [
+                { categoria: 'Pessoal Administrativo', totalAnterior: 58000, totalAtual: 64000, variacao: 10.3 },
+                { categoria: 'Infraestrutura e TI', totalAnterior: 12000, totalAtual: 14000, variacao: 16.7 },
+            ]),
+        ]);
+        const resAnterior = entradasTotal.totalAnterior - materiaisServicos.total.totalAnterior - despesas.total.totalAnterior;
+        const resAtual = entradasTotal.totalAtual - materiaisServicos.total.totalAtual - despesas.total.totalAtual;
+        return {
+            anoAtual: 2026, anoAnterior: 2025,
+            periodoAtual: { de: '2026-01-01', ate: '2026-10-13' },
+            periodoAnterior: { de: '2025-01-01', ate: '2025-10-13' },
+            entradas: { categorias: entradasCategorias, total: entradasTotal },
+            materiaisServicos,
+            despesas,
+            resultadoOperacional: { totalAnterior: resAnterior, totalAtual: resAtual, variacao: (resAtual - resAnterior) / resAnterior * 100 },
+        };
+    }
+    if (url.includes('/api/etl/historico')) {
+        return [
+            {
+                id: 'etl-1', tipo: 'ENTRADAS', arquivoNome: 'entradas_2026.csv',
+                dataInicio: '2026-01-01', dataFim: '2026-10-13', qtdRegistros: 842,
+                createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+            },
+            {
+                id: 'etl-2', tipo: 'DESPESAS', arquivoNome: 'despesas_2026.csv',
+                dataInicio: '2026-01-01', dataFim: '2026-10-13', qtdRegistros: 1203,
+                createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+            },
+        ];
+    }
+    if (url.includes('/api/clientes/servicos')) {
+        const servicos = [
+            { descricao: 'Análise Físico-Química — Água', estruturado: true, quantidade: 420, notas: 180, valorTotal: 186000, ticketMedio: 443, pctDoTotal: 0.28 },
+            { descricao: 'Análise Microbiológica — Água', estruturado: true, quantidade: 310, notas: 150, valorTotal: 142000, ticketMedio: 458, pctDoTotal: 0.21 },
+            { descricao: 'Monitoramento Ambiental Mensal', estruturado: true, quantidade: 96, notas: 96, valorTotal: 118000, ticketMedio: 1229, pctDoTotal: 0.18 },
+            { descricao: 'Análise de Efluente Industrial', estruturado: true, quantidade: 64, notas: 58, valorTotal: 94000, ticketMedio: 1469, pctDoTotal: 0.14 },
+            { descricao: 'Não classificado', estruturado: false, quantidade: 0, notas: 42, valorTotal: 52000, ticketMedio: 1238, pctDoTotal: 0.08 },
+        ];
+        return {
+            periodo: { de: '2026-01-01', ate: '2026-10-13' }, grupo: null,
+            notasConsideradas: servicos.reduce((s, x) => s + x.notas, 0),
+            valorTotal: servicos.reduce((s, x) => s + x.valorTotal, 0),
+            coberturaEstruturada: 0.92,
+            servicos,
+        };
+    }
+    if (url.includes('/api/clientes/faturamento-fiscal')) {
+        return {
+            importacoes: [
+                { id: 'fis-1', competencia: '2026-09-01', arquivoNome: 'nfse_2026_09.csv', qtdNotas: 210, valorTotal: 142000, qtdNaoConciliadas: 3, createdAt: new Date(Date.now() - 5 * 86_400_000).toISOString() },
+                { id: 'fis-2', competencia: '2026-08-01', arquivoNome: 'nfse_2026_08.csv', qtdNotas: 198, valorTotal: 128000, qtdNaoConciliadas: 1, createdAt: new Date(Date.now() - 35 * 86_400_000).toISOString() },
+            ],
+        };
+    }
+    if (url.includes('/api/clientes/sync/status')) {
+        return { emAndamento: false };
+    }
+    if (url.includes('/api/clientes')) {
+        let idSeq = 0;
+        const cliente = (nomeEmpresa: string, faturamento: number, faturamentoAnterior: number, titulos: number, titulosAnterior: number, cidade: string, uf: string) => {
+            idSeq += 1;
+            const impostos = Math.round(faturamento * 0.08);
+            const impostosAnterior = Math.round(faturamentoAnterior * 0.08);
+            return {
+                id: `cli-${idSeq}`, codigo: null, nome: nomeEmpresa, nomeEmpresa, documento: '12.345.678/0001-0' + idSeq,
+                email: `financeiro@${nomeEmpresa.toLowerCase().replace(/[^a-z]+/g, '')}.com.br`, cidade, uf, ativo: true,
+                faturamento, recebido: Math.round(faturamento * 0.85), aberto: Math.round(faturamento * 0.15), titulos, impostos,
+                faturamentoAnterior, titulosAnterior, impostosAnterior,
+            };
+        };
+        const grupo = (codigo: string | null, clientes: ReturnType<typeof cliente>[]) => {
+            const soma = (campo: 'faturamento' | 'recebido' | 'aberto' | 'titulos' | 'impostos' | 'faturamentoAnterior' | 'titulosAnterior' | 'impostosAnterior') =>
+                clientes.reduce((s, c) => s + c[campo], 0);
+            return {
+                codigo, clientes, faturamento: soma('faturamento'), recebido: soma('recebido'), aberto: soma('aberto'),
+                titulos: soma('titulos'), impostos: soma('impostos'), faturamentoAnterior: soma('faturamentoAnterior'),
+                titulosAnterior: soma('titulosAnterior'), impostosAnterior: soma('impostosAnterior'),
+            };
+        };
+        const grupos = [
+            grupo('GRP-001', [cliente('Hospital Santa Clara', 142000, 118000, 24, 20, 'Campinas', 'SP')]),
+            grupo('GRP-002', [
+                cliente('Convênio Vida Plena', 78000, 60000, 14, 12, 'Campinas', 'SP'),
+                cliente('Convênio Vida Plena — Filial Centro', 20000, 16000, 4, 3, 'Campinas', 'SP'),
+            ]),
+            grupo('GRP-003', [cliente('Clínica BioSaúde', 54000, 68000, 12, 14, 'Valinhos', 'SP')]),
+            grupo('GRP-004', [cliente('UPA Jardim das Flores', 46000, 0, 9, 0, 'Campinas', 'SP')]),
+            grupo('GRP-005', [cliente('Convênio Saúde Total', 38000, 52000, 8, 10, 'Vinhedo', 'SP')]),
+            grupo(null, [cliente('Posto de Saúde Central', 21000, 19000, 5, 5, 'Campinas', 'SP')]),
+            grupo('GRP-006', [cliente('Clínica Vale Verde', 0, 24000, 0, 6, 'Valinhos', 'SP')]),
+            grupo('GRP-007', [cliente('Drogaria Bem Estar', 15000, 15200, 4, 4, 'Campinas', 'SP')]),
+        ];
+        const somaGrupos = (campo: 'faturamento' | 'recebido' | 'aberto' | 'titulos' | 'impostos') => grupos.reduce((s, g) => s + g[campo], 0);
+        const faturamentoAnteriorTotal = grupos.reduce((s, g) => s + g.faturamentoAnterior, 0);
+        const impostosAnteriorTotal = grupos.reduce((s, g) => s + g.impostosAnterior, 0);
+        const meses2026 = Array.from({ length: 10 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
+        const meses2025 = Array.from({ length: 10 }, (_, i) => `2025-${String(i + 1).padStart(2, '0')}`);
+        const serieAtual = [92000, 88000, 101000, 95000, 108000, 112000, 98000, 105000, 118000, 121000];
+        const serieAnterior = [81000, 79000, 86000, 90000, 93000, 97000, 88000, 91000, 99000, 104000];
+        return {
+            atualizadoEm: new Date(Date.now() - 3 * 3600_000).toISOString(),
+            fiscal: {
+                mesesImportados: meses2026, mesesEsperados: meses2026, mesesAusentes: [],
+                notasNoPeriodo: somaGrupos('titulos'), naoConciliadasNoPeriodo: 4,
+                ultimaImportacao: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+            },
+            comparacao: {
+                de: '2025-01-01', ate: '2025-10-13', mesesEsperados: meses2025, mesesImportados: meses2025, mesesAusentes: [],
+                notasNoPeriodo: grupos.reduce((s, g) => s + g.titulosAnterior, 0),
+                faturamento: faturamentoAnteriorTotal, impostos: impostosAnteriorTotal,
+            },
+            serieMensal: meses2026.map((mes, i) => ({ mes, mesAnterior: meses2025[i], atual: serieAtual[i], anterior: serieAnterior[i] })),
+            resumo: {
+                cadastros: grupos.reduce((s, g) => s + g.clientes.length, 0), grupos: grupos.length,
+                semCodigo: grupos.filter(g => !g.codigo).length,
+                faturamentoSemCodigo: grupos.filter(g => !g.codigo).reduce((s, g) => s + g.faturamento, 0),
+                faturamento: somaGrupos('faturamento'), impostos: somaGrupos('impostos'),
+                recebido: somaGrupos('recebido'), aberto: somaGrupos('aberto'), titulos: somaGrupos('titulos'),
+            },
+            grupos,
+        };
+    }
+    if (url.includes('/api/dashboard/despesas/agrupado')) {
+        const linhas: { categoria: string; centroDeCusto: string; totalAnual: number; totalAnterior: number }[] = [];
+        const add = (centroDeCusto: string, categoria: string, totalAnterior: number, totalAnual: number) =>
+            linhas.push({ categoria, centroDeCusto, totalAnual, totalAnterior });
+        add('Laboratório Central', 'Reagentes e Insumos', 240000, 278000);
+        add('Laboratório Central', 'Pessoal Técnico', 210000, 235000);
+        add('Laboratório Central', 'Materiais de Consumo', 72000, 81000);
+        add('Laboratório Central', 'Manutenção de Equipamentos', 58000, 64000);
+        add('Laboratório Central', 'Serviços Terceirizados', 40000, 54000);
+        add('Unidade Coleta — Centro', 'Pessoal de Coleta', 140000, 161000);
+        add('Unidade Coleta — Centro', 'Logística de Coleta', 70000, 79000);
+        add('Unidade Coleta — Centro', 'Materiais de Consumo', 50000, 58000);
+        add('Unidade Coleta — Zona Sul', 'Pessoal de Coleta', 82000, 94000);
+        add('Unidade Coleta — Zona Sul', 'Logística de Coleta', 41000, 48000);
+        add('Unidade Coleta — Zona Sul', 'Materiais de Consumo', 27000, 30000);
+        add('Administrativo', 'Pessoal Administrativo', 58000, 64000);
+        add('Administrativo', 'Serviços Terceirizados', 20000, 24000);
+        add('Administrativo', 'Infraestrutura e TI', 12000, 14000);
+        return {
+            data: linhas,
+            filtro: { de: '2026-01-01', ate: '2026-10-13', deAnterior: '2025-01-01', ateAnterior: '2025-10-13' },
+        };
+    }
+    if (url.includes('/api/dashboard/despesas/detalhe-por-cc')) {
+        const bloco = (centroDeCusto: string, categorias: { categoria: string; anterior: number; atual: number }[]) => {
+            const totalAnterior = categorias.reduce((s, c) => s + c.anterior, 0);
+            const totalAtual = categorias.reduce((s, c) => s + c.atual, 0);
+            return {
+                centroDeCusto, totalAnterior, totalAtual,
+                variacao: (totalAtual - totalAnterior) / totalAnterior,
+                categorias: categorias.map(c => ({ ...c, variacao: c.anterior > 0 ? (c.atual - c.anterior) / c.anterior : 1 })),
+            };
+        };
+        return {
+            data: [
+                bloco('Laboratório Central', [
+                    { categoria: 'Reagentes e Insumos', anterior: 240000, atual: 278000 },
+                    { categoria: 'Pessoal Técnico', anterior: 210000, atual: 235000 },
+                    { categoria: 'Materiais de Consumo', anterior: 72000, atual: 81000 },
+                    { categoria: 'Manutenção de Equipamentos', anterior: 58000, atual: 64000 },
+                    { categoria: 'Serviços Terceirizados', anterior: 40000, atual: 54000 },
+                ]),
+                bloco('Unidade Coleta — Centro', [
+                    { categoria: 'Pessoal de Coleta', anterior: 140000, atual: 161000 },
+                    { categoria: 'Logística de Coleta', anterior: 70000, atual: 79000 },
+                    { categoria: 'Materiais de Consumo', anterior: 50000, atual: 58000 },
+                ]),
+                bloco('Unidade Coleta — Zona Sul', [
+                    { categoria: 'Pessoal de Coleta', anterior: 82000, atual: 94000 },
+                    { categoria: 'Logística de Coleta', anterior: 41000, atual: 48000 },
+                    { categoria: 'Materiais de Consumo', anterior: 27000, atual: 30000 },
+                ]),
+                bloco('Administrativo', [
+                    { categoria: 'Pessoal Administrativo', anterior: 58000, atual: 64000 },
+                    { categoria: 'Serviços Terceirizados', anterior: 20000, atual: 24000 },
+                    { categoria: 'Infraestrutura e TI', anterior: 12000, atual: 14000 },
+                ]),
+            ],
+        };
     }
     if (url.includes('/api/dashboard/despesas/comparativo-cc')) {
         return {
