@@ -361,7 +361,9 @@ const VistaoGeral: React.FC = () => {
             </div>
 
             {/* ── KPI Cards ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '1.25rem' }}>
+            {/* minmax com largura mínima (não 0) evita que o rótulo quebre linha
+                em janelas intermediárias: refluí pra 2 colunas antes disso acontecer. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '1.25rem' }}>
 
                 {/* Card 1: Despesa do Período */}
                 <button onClick={() => navigate(`/despesas?de=${periodoAplic.de}&ate=${periodoAplic.ate}`)} className="kpi-card" style={cardStyle}>

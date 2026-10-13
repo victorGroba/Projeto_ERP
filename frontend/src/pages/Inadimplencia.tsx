@@ -497,7 +497,7 @@ const ComparativoView: React.FC<{ data: any; threshold: number }> = ({ data, thr
             </div>
 
             {/* KPIs comparativos */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
                 <KpiComp label="Total Vencido em Atraso" vA={periodoA.totalAtraso} vB={periodoB.totalAtraso} />
                 <KpiComp label="A Vencer (Saudável)"     vA={periodoA.aVencer}     vB={periodoB.aVencer}     />
                 <KpiComp label="Risco Crítico > 90 dias" vA={periodoA.aging.mais_de_90} vB={periodoB.aging.mais_de_90} />

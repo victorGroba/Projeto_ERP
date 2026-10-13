@@ -176,7 +176,7 @@ const ApiContaAzul: React.FC = () => {
             {dados && (
                 <>
                     {/* ── KPIs de topo ── */}
-                    <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                    <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
                         <div className="kpi-card highlight">
                             <div className="kpi-icon"><ShoppingCart size={18} color="var(--success)" /></div>
                             <div className="kpi-content">
