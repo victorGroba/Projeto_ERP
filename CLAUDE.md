@@ -35,6 +35,9 @@ Dashboard financeiro/BI para o laboratório Mattos & Mattos (LabMattos), consumi
 - Tailwind + shadcn/ui + Radix: tokens em `tailwind.config.ts` apontam para as MESMAS custom properties do CSS legado (zero cor nova). Primitivas em `frontend/src/components/ui/`. Migração em fases, uma por vez com aprovação do usuário entre elas — não pular fase sem confirmar.
 - `useCountUp` conflita com a animação de entrada própria do recharts (~60 re-renders/s travam o gráfico visualmente) — sempre desabilitar `isAnimationActive` do gráfico quando a mesma página também tem KPI com count-up.
 
+## Convenção de comparação ano a ano
+- Sempre que uma tela comparar o ano/período atual com o período correspondente do ano anterior (gráficos, tabelas, KPIs lado a lado), **o ano/período atual fica sempre à esquerda e o ano/período comparado (anterior) fica sempre à direita**. Padronizar em todas as telas que já têm ou vierem a ter esse tipo de comparação (ex.: Visão Geral, Relatório Anual, Clientes & Grupos, FilterBar com "Comparar com período anterior").
+
 ## Workflow de equipe (Maestri)
 - Time Maestri ativo neste projeto: recrutas especialistas (ex.: backend/Prisma, UX/frontend React) conectados a este terminal.
 - Antes de commitar o trabalho de um recruta: validar `git status --porcelain` contra o que ele reportou, rodar `npx tsc --noEmit` + build, inspecionar screenshots de antes/depois quando houver mudança visual.

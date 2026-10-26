@@ -449,8 +449,8 @@ export default function Clientes() {
                                     }}
                                 />
                                 <Legend verticalAlign="top" align="right" height={28} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.78rem', color: 'var(--text-muted)' }} />
-                                <Bar dataKey="anterior" name="Período de comparação" fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={!reducedMotion} />
                                 <Bar dataKey="atual" name="Período selecionado" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={!reducedMotion} />
+                                <Bar dataKey="anterior" name="Período de comparação" fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={!reducedMotion} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

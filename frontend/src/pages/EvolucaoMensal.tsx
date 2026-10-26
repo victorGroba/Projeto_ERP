@@ -158,8 +158,8 @@ const EvolucaoMensal: React.FC = () => {
                                         contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '12px', color: 'var(--text-main)' }}
                                     />
                                     <Legend wrapperStyle={{ paddingTop: 16 }} />
-                                    <Bar dataKey="anoAnterior" name={`${year - 1}`} fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                                     <Bar dataKey="anoAtual" name={`${year}`} fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+                                    <Bar dataKey="anoAnterior" name={`${year - 1}`} fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>

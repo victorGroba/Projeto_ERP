@@ -322,8 +322,8 @@ const Despesas: React.FC = () => {
                                             verticalAlign="top" align="right" height={28} iconType="circle" iconSize={8}
                                             wrapperStyle={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}
                                         />
-                                        <Bar dataKey="periodoAnterior" name={periodoAnteriorShort || 'Período de referência'} fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                                         <Bar dataKey="periodoAtual" name={periodoAtualShort} fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+                                        <Bar dataKey="periodoAnterior" name={periodoAnteriorShort || 'Período de referência'} fill="var(--text-subtle)" radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
