@@ -14,6 +14,7 @@ import oauthRoutes from './routes/oauthRoutes';
 import auditRoutes from './routes/auditRoutes';
 import clientesRoutes from './routes/clientesRoutes';
 import custosRoutes from './routes/custosRoutes';
+import integracaoCrmRoutes from './routes/integracaoCrmRoutes';
 
 dotenv.config();
 
@@ -48,6 +49,9 @@ app.use('/api/clientes', clientesRoutes);
 
 // Custeio dos ensaios: insumos (com histórico de preço) e equipamentos
 app.use('/api/custos', custosRoutes);
+
+// Leitura para o CRM (conferencia de faturamento), com token proprio
+app.use('/api/integracao/crm', integracaoCrmRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

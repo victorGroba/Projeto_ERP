@@ -32,7 +32,7 @@ function codigoDestinoAlias(documento: string | null | undefined, nome: string |
 // Indice do cadastro Conta Azul usado tanto na visao de clientes quanto na
 // composicao de servicos, para resolver qual cadastro (e portanto qual
 // `codigo`/grupo) corresponde a uma nota fiscal pelo documento ou nome do tomador.
-async function construirIndiceClientes() {
+export async function construirIndiceClientes() {
     const clientes = await prisma.clienteContaAzul.findMany({ orderBy: [{ codigo: 'asc' }, { nome: 'asc' }] });
     const porDocumento = new Map<string, typeof clientes[number]>();
     const porNome = new Map<string, typeof clientes[number]>();

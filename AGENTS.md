@@ -29,6 +29,11 @@ Dashboard financeiro/BI para o laboratório Mattos & Mattos (LabMattos), consumi
 - Postgres `ALLIMS` em 192.168.1.8 (legado 9.2 porta 5432 + principal 13 porta 5413). Usuário read-only `bi_readonly` existe mas senha pendente com o fornecedor.
 - Workspace separado "LabMattos" (`~/projetos/CRM`, projeto `Projeto_GTS_CRM`) é a origem do logo/favicon da marca e pode futuramente reusar `/api/crm/*` do allims-bi — nada disso foi iniciado, só recrutar quando o usuário pedir explicitamente.
 
+## Integração com o CRM (leitura)
+- `GET /api/integracao/crm/faturamento?desde=AAAA-MM-DD` entrega o cadastro do Conta Azul (com `codigo` de grupo) e as NFS-e para a conferência "executado no Allims × faturado" do CRM do Laboratório Mattos & Mattos (`~/projetos/CRM/Projeto_GTS_CRM`, módulo Faturamento). Só leitura.
+- Autenticação própria por token (`CRM_INTEGRACAO_TOKEN` no `backend/.env`), separada do JWT dos usuários; sem a variável a rota responde 503. O mesmo valor fica no CRM como `CA_BI_TOKEN`. Nunca repetir o valor em documentação.
+- O grupo de cada nota é resolvido pela mesma regra da tela Clientes & Grupos (`construirIndiceClientes`, exportada de `clientesController.ts`) — mudar essa regra muda o que o CRM vê.
+
 ## Design system (em migração)
 - Paleta petrol/graphite real da marca: `--primary:#0b6b76`, `--brand-teal:#3e93a0`, `--brand-graphite:#5b6268`; sinais `--success:#059669`/`--danger:#dc2626`/`--warning:#d97706` (cor de sinal, nunca cor de marca); fundo `--background:#eef3f3`, superfícies `--surface:#fff`; texto `--text-main`/`--text-muted`/`--text-subtle`; raios `--radius-sm:6px`/`--radius-md:10px`/`--radius-lg:14px`. Fontes: Manrope (display/números) + Inter (corpo).
 - "Soft-UI": shell com cards flutuantes, hero com gradiente, contadores com count-up (`useCountUp`, respeita `prefers-reduced-motion`), ring de progresso circular, entrada suave de gráfico. Primitivas em `frontend/src/components/softUi.tsx` + `SoftUI.css`. Aplicado em quase todo o sistema — **exceto** Custeio Analítico (Equipamentos/Ensaios/Serviços — é CRUD de formulário/tabela, não dashboard de KPI).
