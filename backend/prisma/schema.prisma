@@ -157,6 +157,30 @@ model SaldoBancario {
   createdAt   DateTime @default(now())
 }
 
+// NFS-e lidas da API do Conta Azul (GET /v1/notas-fiscais-servico), varias
+// vezes ao dia. Complementa o CSV da prefeitura (NotaFiscalServico), que so
+// chega no fechamento do mes: notas emitidas depois da exportacao do CSV e
+// cancelamentos aparecem aqui antes. O valor da API e o LIQUIDO das retencoes
+// federais (conferido em set/2026: 93,85% ou 98,5% do bruto do CSV), por isso
+// nao se mistura com `valorBruto`. `id` e o UUID da nota no Conta Azul.
+model NotaFiscalServicoApi {
+  id                String    @id
+  numero            String
+  status            String
+  valorLiquido      Float
+  dataCompetencia   DateTime
+  dataEmissao       DateTime?
+  clienteNome       String
+  clienteDocumento  String
+  numeroVenda       String?
+  cidadeEmissao     String?
+  ufEmissao         String?
+  atualizadoEm      DateTime  @updatedAt
+
+  @@index([dataCompetencia])
+  @@index([numero])
+}
+
 // Armazena tokens OAuth e outras configurações persistentes
 model AppConfig {
   key       String   @id

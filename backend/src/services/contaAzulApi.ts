@@ -250,4 +250,19 @@ export class ContaAzulAPI {
 
         return this.getWithRetry(`${this.baseURL}/notas-fiscais?${queryParams.toString()}`);
     }
+
+    /**
+     * NFS-e emitidas, por data de competencia (janela maxima de 15 dias, ate
+     * 100 por pagina). Traz todos os status, inclusive CANCELADA. O valor
+     * (`valor_total_nfse`) e o liquido das retencoes federais.
+     */
+    async getNotasFiscaisServico(params: { de: string; ate: string; pagina?: number }): Promise<any> {
+        const queryParams = new URLSearchParams({
+            data_competencia_de: params.de,
+            data_competencia_ate: params.ate,
+            pagina: String(params.pagina || 1),
+            tamanho_pagina: '100',
+        });
+        return this.getWithRetry(`${this.baseURL}/notas-fiscais-servico?${queryParams.toString()}`);
+    }
 }

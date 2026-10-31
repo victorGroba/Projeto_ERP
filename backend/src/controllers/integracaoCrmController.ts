@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { construirIndiceClientes } from './clientesController';
+import { estadoNfseApi } from '../services/nfseApiSyncService';
 
 const prisma = new PrismaClient();
 
 const digits = (value: string | null | undefined) => (value || '').replace(/\D/g, '');
+const STATUS_EMITIDA = new Set(['EMITIDA', 'CORRIGIDA_SUCESSO']);
 
 /**
  * Cadastro do Conta Azul (com o `codigo` de grupo) e NFS-e emitidas, para a
@@ -16,6 +18,12 @@ const digits = (value: string | null | undefined) => (value || '').replace(/\D/g
  *
  * `desde` (YYYY-MM-DD) filtra as notas pela competencia; o cadastro vem
  * sempre inteiro (~1.600 linhas).
+ *
+ * Duas fontes de nota: o CSV da prefeitura (fechamento do mes, valor bruto) e
+ * a API do Conta Azul (lida a cada poucas horas, valor liquido das retencoes).
+ * O CSV manda no que ja trouxe; da API entram so as notas emitidas que o CSV
+ * ainda nao tem (`fonte: 'API'`, `valorLiquido: true`), e uma nota do CSV
+ * cancelada depois da exportacao sai da lista.
  */
 export const getFaturamentoParaCrm = async (req: Request, res: Response) => {
     try {
@@ -28,6 +36,17 @@ export const getFaturamentoParaCrm = async (req: Request, res: Response) => {
             orderBy: { dataCompetencia: 'asc' },
         });
         const ultimaImportacao = await prisma.importacaoFiscal.findFirst({ orderBy: { competencia: 'desc' }, select: { competencia: true, createdAt: true } });
+        const [notasApi, estadoApi] = await Promise.all([
+            prisma.notaFiscalServicoApi.findMany({ where: { dataCompetencia: { gte: desde } } }),
+            estadoNfseApi(),
+        ]);
+        const semZeros = (numero: string) => numero.replace(/^0+/, '');
+        const statusApi = new Map(notasApi.map(n => [semZeros(n.numero), n.status]));
+        const numerosCsv = new Set(notas.map(n => semZeros(n.numero)));
+        // Todas as notas do CSV sao do mesmo prestador (Conta Azul RJ); a nota que
+        // so existe na API herda esse documento para casar com a chave do CRM.
+        const prestadorCsv = notas.length ? digits(notas[notas.length - 1].prestadorDocumento) : '';
+        const soNaApi = notasApi.filter(n => STATUS_EMITIDA.has(n.status) && !numerosCsv.has(semZeros(n.numero)));
 
         res.json({
             origem: 'CONTA_AZUL_RJ',
@@ -41,7 +60,10 @@ export const getFaturamentoParaCrm = async (req: Request, res: Response) => {
                 grupo: c.codigo?.trim() || null,
                 ativo: c.ativo,
             })),
-            notas: notas.map(n => {
+            ultimaLeituraApi: estadoApi.ultimoOk?.em ?? null,
+            erroApi: estadoApi.ultimoErro ?? null,
+            notas: [
+                ...notas.filter(n => statusApi.get(semZeros(n.numero)) !== 'CANCELADA').map(n => {
                 const cadastro = indice.cadastroNotaFiscal(digits(n.clienteDocumento), n.clienteNome);
                 return {
                     numero: n.numero,
@@ -52,9 +74,28 @@ export const getFaturamentoParaCrm = async (req: Request, res: Response) => {
                     dataEmissao: n.dataEmissao.toISOString(),
                     competencia: n.dataCompetencia.toISOString(),
                     valorBruto: n.valorBruto,
+                    valorLiquido: false,
+                    fonte: 'CSV',
                     descricao: n.descricaoServico,
                 };
-            }),
+                }),
+                ...soNaApi.map(n => {
+                    const cadastro = indice.cadastroNotaFiscal(n.clienteDocumento, n.clienteNome);
+                    return {
+                        numero: n.numero,
+                        prestadorDocumento: prestadorCsv,
+                        tomadorDocumento: n.clienteDocumento,
+                        tomadorNome: n.clienteNome,
+                        grupo: cadastro?.codigo?.trim() || null,
+                        dataEmissao: (n.dataEmissao ?? n.dataCompetencia).toISOString(),
+                        competencia: n.dataCompetencia.toISOString(),
+                        valorBruto: n.valorLiquido,
+                        valorLiquido: true,
+                        fonte: 'API',
+                        descricao: null,
+                    };
+                }),
+            ],
         });
     } catch (error) {
         console.error('[integracao/crm/faturamento] Erro:', error);

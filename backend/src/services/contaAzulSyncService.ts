@@ -402,6 +402,21 @@ function finalizarSync(): void {
     progressoAtual = null;
 }
 
+/**
+ * Roda `fn` sob a mesma trava dos syncs do financeiro. Dois processos
+ * renovando o token ao mesmo tempo invalidam um ao outro (o refresh token
+ * gira a cada renovacao), entao nenhuma leitura da API roda em paralelo.
+ * Devolve null quando ja ha outra sincronizacao em andamento.
+ */
+export async function comTravaDeSync<T>(modo: string, fn: () => Promise<T>): Promise<T | null> {
+    if (iniciarSync(modo)) return null;
+    try {
+        return await fn();
+    } finally {
+        finalizarSync();
+    }
+}
+
 // Roda os 3 syncs com Promise.allSettled (não Promise.all) de propósito: se
 // syncDespesas falhar rápido, Promise.all rejeitaria na hora e devolveria o
 // controle pro caller — mas syncReceitas/syncSaldosBancarios continuariam

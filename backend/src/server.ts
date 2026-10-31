@@ -15,6 +15,7 @@ import auditRoutes from './routes/auditRoutes';
 import clientesRoutes from './routes/clientesRoutes';
 import custosRoutes from './routes/custosRoutes';
 import integracaoCrmRoutes from './routes/integracaoCrmRoutes';
+import { agendarSincronizacaoNfseApi } from './services/nfseApiSyncService';
 
 dotenv.config();
 
@@ -92,4 +93,11 @@ async function ensureAdmin() {
 app.listen(Number(PORT), '0.0.0.0', async () => {
     await ensureAdmin();
     console.log(`[Server]: 🚀 API rodando na porta ${PORT}`);
+    // NFS-e pela API do Conta Azul a cada N horas (padrao 2). So em producao:
+    // o banco de dev nao tem token. NFSE_API_SYNC_HORAS=0 desliga.
+    const horas = Number(process.env.NFSE_API_SYNC_HORAS ?? 2);
+    if (process.env.NODE_ENV === 'production' && horas > 0) {
+        agendarSincronizacaoNfseApi(horas);
+        console.log(`[Server]: 🧾 NFS-e da API do Conta Azul a cada ${horas}h`);
+    }
 });
