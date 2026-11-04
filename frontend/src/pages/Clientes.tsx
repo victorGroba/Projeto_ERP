@@ -240,9 +240,10 @@ export default function Clientes() {
     })), [dados]);
 
     const gruposVisiveis = useMemo(() => dados?.grupos.filter(grupo => {
-        // Grupos sem movimento nos dois períodos só aparecem quando procurados pelo nome.
-        if (!busca && grupo.faturamento <= 0 && grupo.faturamentoAnterior <= 0) return false;
-        if (somenteSemCodigo && (grupo.codigo || grupo.faturamento <= 0)) return false;
+        // Grupos sem movimento nos dois períodos só aparecem quando procurados pelo nome
+        // ou ao visualizar especificamente os clientes sem código (mesmo sem faturamento).
+        if (!busca && !somenteSemCodigo && grupo.faturamento <= 0 && grupo.faturamentoAnterior <= 0) return false;
+        if (somenteSemCodigo && grupo.codigo) return false;
         if (tendencia !== 'todos' && tendenciaDe(grupo.faturamento, grupo.faturamentoAnterior) !== tendencia) return false;
         if (grupoFiltro.length > 0 && (!grupo.codigo || !grupoFiltro.includes(grupo.codigo))) return false;
         return true;
@@ -480,7 +481,7 @@ export default function Clientes() {
                     <span /><span>Código</span><span>Grupo</span><span>{fmtDataCurta(dados.comparacao.de)} – {fmtDataCurta(dados.comparacao.ate)}</span><span>{fmtDataCurta(periodo.de)} – {fmtDataCurta(periodo.ate)}</span><span>Variação</span>
                 </div>
                 {loading ? <div className="clientes-empty"><Loader2 size={18} className="animate-spin" /> Atualizando visão…</div>
-                    : gruposVisiveis.length === 0 ? <div className="clientes-empty">{somenteSemCodigo ? 'Nenhum cliente com faturamento está sem código neste período.' : 'Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.'}</div>
+                    : gruposVisiveis.length === 0 ? <div className="clientes-empty">{somenteSemCodigo ? 'Nenhum cliente está sem código.' : 'Nenhum cliente encontrado. Sincronize os cadastros ou ajuste os filtros.'}</div>
                     : gruposVisiveis.map((grupo, index) => {
                         const key = grupo.codigo || grupo.clientes[0]?.id || String(index);
                         const aberto = abertos.has(key);

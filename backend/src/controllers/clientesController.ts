@@ -341,7 +341,7 @@ export async function getVisaoClientes(req: Request, res: Response): Promise<voi
             resumo: {
                 cadastros: clientes.length,
                 grupos: grupos.filter(g => g.codigo).length,
-                semCodigo: grupos.filter(g => !g.codigo && g.faturamento > 0).length,
+                semCodigo: grupos.filter(g => !g.codigo).length,
                 faturamentoSemCodigo: grupos.filter(g => !g.codigo).reduce((sum, g) => sum + g.faturamento, 0),
                 faturamento: grupos.reduce((sum, g) => sum + g.faturamento, 0),
                 impostos: grupos.reduce((sum, g) => sum + g.impostos, 0),
