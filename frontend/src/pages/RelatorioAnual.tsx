@@ -48,7 +48,10 @@ interface ReportData {
     materiaisServicos: CCGroup;
     despesas: CCGroup;
     outros?: CCGroup;
+    investimentos?: { categorias: CatRow[]; total: { totalAnterior: number; totalAtual: number; variacao: number | null } };
+    distribuicaoLucros?: { categorias: CatRow[]; total: { totalAnterior: number; totalAtual: number; variacao: number | null } };
     resultadoOperacional: { totalAnterior: number; totalAtual: number; variacao: number | null };
+    resultadoFinanceiroLiquido: { totalAnterior: number; totalAtual: number; variacao: number | null };
 }
 
 interface ImportRecord {
@@ -122,6 +125,8 @@ const RelatorioAnual: React.FC = () => {
         matsServ: true,
         despesas: true,
         outros: false,
+        investimentos: false,
+        distribuicaoLucros: false,
     });
 
     const toggle = (key: string) =>
@@ -582,6 +587,52 @@ const RelatorioAnual: React.FC = () => {
                         </div>
                     )}
 
+                    {/* INVESTIMENTOS EM IMOBILIZADOS (fora do Resultado Operacional) */}
+                    {data.investimentos && data.investimentos.categorias.length > 0 && (
+                        <div className="rel-section">
+                            <SectionHead
+                                sectionKey="investimentos"
+                                icon={<Layers size={16} color="var(--text-muted)" />}
+                                title="Investimentos em Imobilizados"
+                                totalAnterior={data.investimentos.total.totalAnterior}
+                                totalAtual={data.investimentos.total.totalAtual}
+                                isExpense
+                            />
+                            {openSections.investimentos && (
+                                <>
+                                    {renderComparativoChart(
+                                        'Investimentos em Imobilizados por categoria',
+                                        data.investimentos.categorias.map(c => ({ categoria: c.categoria, valorA: c.totalAnterior, valorB: c.totalAtual, variacao: c.variacao })),
+                                    )}
+                                    {renderTable(data.investimentos.categorias, data.investimentos.total, 'Total Investimentos', true)}
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {/* DISTRIBUIÇÃO DE LUCROS (fora do Resultado Operacional) */}
+                    {data.distribuicaoLucros && data.distribuicaoLucros.categorias.length > 0 && (
+                        <div className="rel-section">
+                            <SectionHead
+                                sectionKey="distribuicaoLucros"
+                                icon={<Layers size={16} color="var(--text-muted)" />}
+                                title="Distribuição de Lucros"
+                                totalAnterior={data.distribuicaoLucros.total.totalAnterior}
+                                totalAtual={data.distribuicaoLucros.total.totalAtual}
+                                isExpense
+                            />
+                            {openSections.distribuicaoLucros && (
+                                <>
+                                    {renderComparativoChart(
+                                        'Distribuição de Lucros por categoria',
+                                        data.distribuicaoLucros.categorias.map(c => ({ categoria: c.categoria, valorA: c.totalAnterior, valorB: c.totalAtual, variacao: c.variacao })),
+                                    )}
+                                    {renderTable(data.distribuicaoLucros.categorias, data.distribuicaoLucros.total, 'Total Distribuição de Lucros', true)}
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     {/* RESULTADO OPERACIONAL */}
                     <div className="rel-resultado">
                         <div className="rel-table-wrap">
@@ -640,6 +691,36 @@ const RelatorioAnual: React.FC = () => {
                                             {fmt(data.resultadoOperacional.totalAtual)}
                                         </td>
                                         <td><Delta pct={data.resultadoOperacional.variacao} inverso /></td>
+                                    </tr>
+                                    {/* Destinações do resultado — não fazem parte do Resultado Operacional em si */}
+                                    {data.investimentos && data.investimentos.categorias.length > 0 && (
+                                        <tr className="rel-destinacao-row">
+                                            <td>Investimentos em Imobilizados</td>
+                                            <td className="rel-val-neg">{fmt(-data.investimentos.total.totalAnterior)}</td>
+                                            <td className="rel-val-neg">{fmt(-data.investimentos.total.totalAtual)}</td>
+                                            <td><Delta pct={data.investimentos.total.variacao} /></td>
+                                        </tr>
+                                    )}
+                                    {data.distribuicaoLucros && data.distribuicaoLucros.categorias.length > 0 && (
+                                        <tr className="rel-destinacao-row">
+                                            <td>Distribuição de Lucros</td>
+                                            <td className="rel-val-neg">{fmt(-data.distribuicaoLucros.total.totalAnterior)}</td>
+                                            <td className="rel-val-neg">{fmt(-data.distribuicaoLucros.total.totalAtual)}</td>
+                                            <td><Delta pct={data.distribuicaoLucros.total.variacao} /></td>
+                                        </tr>
+                                    )}
+                                    <tr>
+                                        <td style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Calculator size={16} color="var(--primary)" />
+                                            Resultado Financeiro Líquido
+                                        </td>
+                                        <td style={{ color: data.resultadoFinanceiroLiquido.totalAnterior >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                            {fmt(data.resultadoFinanceiroLiquido.totalAnterior)}
+                                        </td>
+                                        <td style={{ color: data.resultadoFinanceiroLiquido.totalAtual >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                            {fmt(data.resultadoFinanceiroLiquido.totalAtual)}
+                                        </td>
+                                        <td><Delta pct={data.resultadoFinanceiroLiquido.variacao} inverso /></td>
                                     </tr>
                                 </tfoot>
                             </table>

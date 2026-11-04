@@ -10,8 +10,35 @@ const DESPESAS_ADMIN_KEYWORDS = [
     'qualidade', 'terceiros',
 ];
 
+// Categorias que, independentemente do Centro de Custo a que estão atreladas, não fazem
+// parte do Resultado Operacional — são destinações do resultado apurado (pedido do Daniel,
+// 04/11/2026). Nomes exatos conferidos contra a produção, grafia (inclusive erros de
+// digitação já gravados nos lançamentos) preservada de propósito.
+const CATEGORIAS_INVESTIMENTOS = [
+    'Máquinas, Equipamentos e Instalações Industriais',
+    'Outras Imobilizações por Aquisição',
+    'Consórcio - Veículos',
+    'Veículos',
+];
+const CATEGORIAS_DISTRIBUICAO_LUCROS = [
+    'Antecipação de Lucros do Exercício - Carmen',
+    'Antecipação de Lucros do Exercício - Raphael',
+    'Antecipação de Lucros do Execício-Vivian',
+    'Antecipação de Lucros Exercício - Raphael Mattos',
+];
+
 function normalize(s: string): string {
     return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+const CATEGORIAS_INVESTIMENTOS_NORM = CATEGORIAS_INVESTIMENTOS.map(normalize);
+const CATEGORIAS_DISTRIBUICAO_LUCROS_NORM = CATEGORIAS_DISTRIBUICAO_LUCROS.map(normalize);
+
+function classificaDestinacao(categoria: string): 'investimentos' | 'distribuicaoLucros' | null {
+    const n = normalize(categoria);
+    if (CATEGORIAS_INVESTIMENTOS_NORM.includes(n)) return 'investimentos';
+    if (CATEGORIAS_DISTRIBUICAO_LUCROS_NORM.includes(n)) return 'distribuicaoLucros';
+    return null;
 }
 
 function classify(cc: string): 'mats' | 'desp' | 'outros' {
@@ -78,11 +105,23 @@ export const getRelatorioAnual = async (req: Request, res: Response): Promise<vo
         const totalEntradasAtual = r(entradasCategorias.reduce((s, c) => s + c.totalAtual, 0));
 
         // ── DESPESAS por CC → Categoria ──
+        // Investimentos em Imobilizados e Distribuição de Lucros ficam fora do rateio por CC:
+        // não são Resultado Operacional, são destinação do resultado já apurado.
         const ccMap: Record<string, Record<string, { anterior: number; atual: number }>> = {};
+        const destinacaoMap: Record<'investimentos' | 'distribuicaoLucros', Record<string, { anterior: number; atual: number }>> = {
+            investimentos: {},
+            distribuicaoLucros: {},
+        };
         const processDespesas = (items: typeof lancAnterior, periodo: 'anterior' | 'atual') => {
             items.filter(l => l.tipo === 'DESPESA').forEach(l => {
-                const cc = l.centroDeCusto || 'Geral';
                 const cat = l.categoria || 'Sem Categoria';
+                const destinacao = classificaDestinacao(cat);
+                if (destinacao) {
+                    if (!destinacaoMap[destinacao][cat]) destinacaoMap[destinacao][cat] = { anterior: 0, atual: 0 };
+                    destinacaoMap[destinacao][cat][periodo] += l.valor;
+                    return;
+                }
+                const cc = l.centroDeCusto || 'Geral';
                 if (!ccMap[cc]) ccMap[cc] = {};
                 if (!ccMap[cc][cat]) ccMap[cc][cat] = { anterior: 0, atual: 0 };
                 ccMap[cc][cat][periodo] += l.valor;
@@ -90,6 +129,24 @@ export const getRelatorioAnual = async (req: Request, res: Response): Promise<vo
         };
         processDespesas(lancAnterior, 'anterior');
         processDespesas(lancAtual, 'atual');
+
+        const buildCategoriaGroup = (map: Record<string, { anterior: number; atual: number }>) => {
+            const categorias = Object.entries(map)
+                .map(([cat, v]) => ({
+                    categoria: cat,
+                    totalAnterior: r(v.anterior),
+                    totalAtual: r(v.atual),
+                    variacao: pct(v.anterior, v.atual),
+                }))
+                .filter(c => c.totalAnterior > 0 || c.totalAtual > 0)
+                .sort((a, b) => b.totalAtual - a.totalAtual);
+            const totalAnterior = r(categorias.reduce((s, c) => s + c.totalAnterior, 0));
+            const totalAtual = r(categorias.reduce((s, c) => s + c.totalAtual, 0));
+            return { categorias, total: { totalAnterior, totalAtual, variacao: pct(totalAnterior, totalAtual) } };
+        };
+
+        const investimentos = buildCategoriaGroup(destinacaoMap.investimentos);
+        const distribuicaoLucros = buildCategoriaGroup(destinacaoMap.distribuicaoLucros);
 
         const buildCCGroup = (filter: (cc: string) => boolean) => {
             const centros = Object.entries(ccMap)
@@ -131,6 +188,12 @@ export const getRelatorioAnual = async (req: Request, res: Response): Promise<vo
         const resultAnterior = r(totalEntradasAnterior - materiaisServicos.total.totalAnterior - despesas.total.totalAnterior - (outros.total.totalAnterior || 0));
         const resultAtual = r(totalEntradasAtual - materiaisServicos.total.totalAtual - despesas.total.totalAtual - (outros.total.totalAtual || 0));
 
+        // Resultado Financeiro Líquido = Resultado Operacional - destinações (Investimentos e
+        // Distribuição de Lucros). Essas categorias não entram no Resultado Operacional em si
+        // (pedido do Daniel, 04/11/2026) — são o que se faz com o resultado já apurado.
+        const liquidoAnterior = r(resultAnterior - investimentos.total.totalAnterior - distribuicaoLucros.total.totalAnterior);
+        const liquidoAtual = r(resultAtual - investimentos.total.totalAtual - distribuicaoLucros.total.totalAtual);
+
         res.json({
             success: true,
             anoAtual,
@@ -144,10 +207,17 @@ export const getRelatorioAnual = async (req: Request, res: Response): Promise<vo
             materiaisServicos,
             despesas,
             outros: outros.centrosDeCusto.length > 0 ? outros : undefined,
+            investimentos: investimentos.categorias.length > 0 ? investimentos : undefined,
+            distribuicaoLucros: distribuicaoLucros.categorias.length > 0 ? distribuicaoLucros : undefined,
             resultadoOperacional: {
                 totalAnterior: resultAnterior,
                 totalAtual: resultAtual,
                 variacao: pct(resultAnterior, resultAtual),
+            },
+            resultadoFinanceiroLiquido: {
+                totalAnterior: liquidoAnterior,
+                totalAtual: liquidoAtual,
+                variacao: pct(liquidoAnterior, liquidoAtual),
             },
         });
     } catch (error: any) {

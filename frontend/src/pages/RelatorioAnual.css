@@ -178,6 +178,16 @@
   padding: 1rem;
 }
 
+/* ── Linhas de destinação do resultado (Investimentos, Distribuição de Lucros) ──
+   Ficam entre "Resultado Operacional" e "Resultado Financeiro Líquido", no mesmo
+   tfoot, mas sem a ênfase visual das linhas de totalização. */
+.rel-resultado .rel-table tfoot tr.rel-destinacao-row td {
+  background: var(--surface);
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-top: none;
+}
+
 /* ── Grupo "total mats/serv" e "total despesas" ── */
 .rel-group-total td {
   background: color-mix(in srgb, var(--primary) 5%, var(--surface-hover)) !important;

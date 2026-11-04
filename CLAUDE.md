@@ -42,6 +42,12 @@ Dashboard financeiro/BI para o laboratório Mattos & Mattos (LabMattos), consumi
 - Tailwind + shadcn/ui + Radix: tokens em `tailwind.config.ts` apontam para as MESMAS custom properties do CSS legado (zero cor nova). Primitivas em `frontend/src/components/ui/`. Migração em fases, uma por vez com aprovação do usuário entre elas — não pular fase sem confirmar.
 - `useCountUp` conflita com a animação de entrada própria do recharts (~60 re-renders/s travam o gráfico visualmente) — sempre desabilitar `isAnimationActive` do gráfico quando a mesma página também tem KPI com count-up.
 
+## Relatório Anual — destinações do resultado (regra do Daniel, 04/11/2026)
+- As categorias de **Investimentos em Imobilizados** (`Máquinas, Equipamentos e Instalações Industriais`, `Outras Imobilizações por Aquisição`, `Consórcio - Veículos`, `Veículos`) e de **Distribuição de Lucros** (`Antecipação de Lucros do Exercício - Carmen`, `Antecipação de Lucros do Exercício - Raphael`, `Antecipação de Lucros do Execício-Vivian`, `Antecipação de Lucros Exercício - Raphael Mattos`) **não fazem parte do Resultado Operacional**, independentemente do Centro de Custo a que estão atreladas — são destinação do resultado já apurado, não despesa operacional.
+- Grafia exata dessas categorias conferida contra a produção — inclusive erros de digitação já gravados nos lançamentos (ex.: "Execício" sem o "r", "Antecipação de Lucros Exercício" sem o "do"). Ver `CATEGORIAS_INVESTIMENTOS`/`CATEGORIAS_DISTRIBUICAO_LUCROS` em `relatorioAnualController.ts`. Se o nome da categoria mudar na origem, o match quebra silenciosamente — reconferir contra a produção antes de alterar.
+- No Relatório Anual elas ganham seção própria (após Despesas/Outros) e, no quadro "Resultado Financeiro Operacional", viram linhas após o "Resultado Operacional", terminando em "Resultado Financeiro Líquido" (= Resultado Operacional − Investimentos − Distribuição de Lucros).
+- Não adicionar categorias a essas listas por inferência — só as que o Daniel pedir explicitamente.
+
 ## Convenção de comparação ano a ano
 - Sempre que uma tela comparar o ano/período atual com o período correspondente do ano anterior (gráficos, tabelas, KPIs lado a lado), **o ano/período atual fica sempre à esquerda e o ano/período comparado (anterior) fica sempre à direita**. Padronizar em todas as telas que já têm ou vierem a ter esse tipo de comparação (ex.: Visão Geral, Relatório Anual, Clientes & Grupos, FilterBar com "Comparar com período anterior").
 
