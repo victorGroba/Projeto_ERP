@@ -22,7 +22,8 @@ const STATUS_EMITIDA = new Set(['EMITIDA', 'CORRIGIDA_SUCESSO']);
  *
  * Duas fontes de nota: o CSV da prefeitura (fechamento do mes, valor bruto) e
  * a API do Conta Azul (lida a cada poucas horas, valor liquido das retencoes).
- * O CSV manda no que ja trouxe; da API entram so as notas emitidas que o CSV
+ * O bruto do CSV é preservado; líquidos fiscal/API são campos separados.
+ * Da API entram como notas adicionais somente as emitidas que o CSV
  * ainda nao tem (`fonte: 'API'`, `valorLiquido: true`), e uma nota do CSV
  * cancelada depois da exportacao sai da lista.
  */

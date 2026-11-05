@@ -67,3 +67,11 @@ Manter este AGENTS.md atualizado conforme decisões de arquitetura, regras de ne
 - Endpoint do CRM preserva bruto e exporta líquidos fiscal/Conta Azul separados, associando nota e tomador e deduplicando as fontes. Nenhuma alíquota presumida.
 - Histórico API pode ser completado com `backend/scripts/completar-nfse-historico.cjs`, dry-run por padrão; só cache local com --apply e backup. Não renovar OAuth em processo paralelo.
 - Detalhes em `backend/VALORES-CRM.md`. Validar e obter confirmação antes de publicação, conforme regra acima.
+
+Validação da correção: TypeScript/build backend e 2 testes unitários passaram.
+Contrato real em SQLite descartável validou importação de CSV com líquido,
+mescla com API sem duplicação e exclusão de canceladas. Fluxo HTTP completo
+BI→CRM validou 3 notas: líquido R$ 27.882,01 e bruto R$ 29.709,13.
+Consulta histórica real em dry-run abortou HTTP 401 sem escrever nem renovar
+OAuth em paralelo; complementar histórico após a rotina normal renovar acesso.
+Nenhuma alteração de banco/código/conta fiscal em produção nesta etapa.
