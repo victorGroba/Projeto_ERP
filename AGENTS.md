@@ -75,3 +75,11 @@ BI→CRM validou 3 notas: líquido R$ 27.882,01 e bruto R$ 29.709,13.
 Consulta histórica real em dry-run abortou HTTP 401 sem escrever nem renovar
 OAuth em paralelo; complementar histórico após a rotina normal renovar acesso.
 Nenhuma alteração de banco/código/conta fiscal em produção nesta etapa.
+
+## Valores separados no CRM — publicado em 2026-11-05
+- Usuário autorizou explicitamente publicação do BI + CRM e complemento histórico com “pode”. Código BI 86a1f06, imagem d85251ace7bd310e0e2c3efe7b1b0f48c9359b8f9c7f2117a981b62ae540eb52. Push main concluído; schema SQLite adicionou apenas valorLiquidoFiscal nullable.
+- Backup SQLite consistente, integrity_check=ok, modo 0600: /root/backups/faturamento-liquidos-20261105/bi-antes.sqlite. Imagem anterior: ca-bi-dashboard-app:pre-liquidos-20261105.
+- Primeira consulta histórica encontrou 401; renovação ocorreu pela rotina normal no app, que sincronizou 410 notas recentes. Depois, scripts/completar-nfse-historico.cjs --desde 2025-01-01 --ate 2026-08-21 --apply concluiu 4.158 registros de API no cache local. Nenhuma emissão/cancelamento no Conta Azul. Cache passou a 4.568 registros (inclui diferentes situações fiscais).
+- Comparação com backup confirmou as 3.956 notas do CSV e seus valores fiscais originais intactos. Não houve reimportação nem cálculo de retenção por percentual.
+- CRM d052bab sincronizado e validado em produção: notas 2301/2358/2431 = bruto 29.709,13 e líquido 27.882,01, todos com origem API_CONTA_AZUL; cancelada 2272 fora do total. Nenhum líquido ausente nesse recorte.
+- Cadência de coleta continua 2h. Rollback preferencial só da imagem, mantendo colunas/caches aditivos. Não restaurar SQLite antigo sem preservar os tokens OAuth atuais, pois a renovação normal gira o refresh token.
