@@ -1,4 +1,5 @@
 import { Readable } from 'stream';
+import { lerLiquidoExplicito } from './valoresNfseCrm';
 import csv from 'csv-parser';
 import { Prisma, PrismaClient } from '@prisma/client';
 
@@ -144,6 +145,7 @@ export async function importarFaturamentoFiscal(buffer: Buffer, arquivoNome: str
             const dataEmissao = parseMunicipalDate(row.data_hora_da_emissao_da_nota_fiscal);
             const dataCompetencia = parseMunicipalDate(row.data_de_competencia);
             const valorBruto = parseCurrency(row.valor_dos_servicos);
+            const valorLiquidoFiscal = lerLiquidoExplicito(row);
             const clienteDocumento = digits(row.cpf_cnpj_nif_do_tomador);
             const clienteNome = String(row.razao_social_do_tomador || '').trim();
             const prestadorDocumento = digits(row.cpf_cnpj_do_prestador);
@@ -159,7 +161,7 @@ export async function importarFaturamentoFiscal(buffer: Buffer, arquivoNome: str
             }
             return {
                 numero, dataEmissao, dataCompetencia, valorBruto, clienteDocumento, clienteNome, prestadorDocumento,
-                valorCSLL, valorIR, descricaoServico,
+                valorCSLL, valorIR, valorLiquidoFiscal, descricaoServico,
                 itens: parseItensServico(descricaoServico, valorBruto),
             };
         });

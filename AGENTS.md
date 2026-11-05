@@ -60,3 +60,10 @@ Dashboard financeiro/BI para o laboratório Mattos & Mattos (LabMattos), consumi
 
 ## Manutenção deste arquivo
 Manter este AGENTS.md atualizado conforme decisões de arquitetura, regras de negócio e descobertas operacionais relevantes forem surgindo — é a fonte de contexto que qualquer sessão nova do Codex deve conseguir ler sem depender de memória ou de um resumo de conversa longo.
+
+## Correção de valores enviados ao CRM — 2026-11-05 (em validação)
+- Implementação em branch isolada `fix/crm-liquido-notas`, ainda sem publicação.
+- Novo campo nullable `NotaFiscalServico.valorLiquidoFiscal`, lido somente de coluna explícita do CSV; não altera regras dos demais relatórios financeiros.
+- Endpoint do CRM preserva bruto e exporta líquidos fiscal/Conta Azul separados, associando nota e tomador e deduplicando as fontes. Nenhuma alíquota presumida.
+- Histórico API pode ser completado com `backend/scripts/completar-nfse-historico.cjs`, dry-run por padrão; só cache local com --apply e backup. Não renovar OAuth em processo paralelo.
+- Detalhes em `backend/VALORES-CRM.md`. Validar e obter confirmação antes de publicação, conforme regra acima.

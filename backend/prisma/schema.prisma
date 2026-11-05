@@ -110,6 +110,8 @@ model NotaFiscalServico {
   dataEmissao         DateTime
   dataCompetencia     DateTime
   valorBruto          Float
+  // Somente coluna explícita do arquivo, nunca calculado por alíquota presumida.
+  valorLiquidoFiscal  Float?
   // Retencoes federais informadas pela propria NFS-e (colunas "Valor CSLL" e
   // "Valor IR" do layout da prefeitura). Faturamento liquido = valorBruto -
   // (valorCSLL + valorIR); o ISS fica de fora por decisao do financeiro, pois

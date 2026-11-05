@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { construirIndiceClientes } from './clientesController';
 import { estadoNfseApi } from '../services/nfseApiSyncService';
+import { valorApiParaNota } from '../services/valoresNfseCrm';
 
 const prisma = new PrismaClient();
 
@@ -42,6 +43,7 @@ export const getFaturamentoParaCrm = async (req: Request, res: Response) => {
         ]);
         const semZeros = (numero: string) => numero.replace(/^0+/, '');
         const statusApi = new Map(notasApi.map(n => [semZeros(n.numero), n.status]));
+        const apiPorNumero = new Map(notasApi.map(n => [semZeros(n.numero), n]));
         const numerosCsv = new Set(notas.map(n => semZeros(n.numero)));
         // Todas as notas do CSV sao do mesmo prestador (Conta Azul RJ); a nota que
         // so existe na API herda esse documento para casar com a chave do CRM.
@@ -75,6 +77,8 @@ export const getFaturamentoParaCrm = async (req: Request, res: Response) => {
                     competencia: n.dataCompetencia.toISOString(),
                     valorBruto: n.valorBruto,
                     valorLiquido: false,
+                    valorLiquidoFiscal: n.valorLiquidoFiscal,
+                    valorLiquidoContaAzul: valorApiParaNota(n, apiPorNumero.get(semZeros(n.numero))),
                     fonte: 'CSV',
                     descricao: n.descricaoServico,
                 };
@@ -91,6 +95,8 @@ export const getFaturamentoParaCrm = async (req: Request, res: Response) => {
                         competencia: n.dataCompetencia.toISOString(),
                         valorBruto: n.valorLiquido,
                         valorLiquido: true,
+                        valorLiquidoFiscal: null,
+                        valorLiquidoContaAzul: n.valorLiquido,
                         fonte: 'API',
                         descricao: null,
                     };
