@@ -34,6 +34,7 @@ COPY --from=backend /app/backend/node_modules ./node_modules
 COPY --from=backend /app/backend/dist ./dist
 COPY --from=backend /app/backend/package.json ./package.json
 COPY backend/prisma ./prisma
+COPY backend/scripts ./scripts
 
 # Frontend buildado vai para /public (servido pelo Express)
 COPY --from=frontend /app/frontend/dist ./public
