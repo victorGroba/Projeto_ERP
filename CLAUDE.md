@@ -29,6 +29,10 @@ Dashboard financeiro/BI para o laboratório Mattos & Mattos (LabMattos), consumi
 - Postgres `ALLIMS` em 192.168.1.8 (legado 9.2 porta 5432 + principal 13 porta 5413). Usuário read-only `bi_readonly` existe mas senha pendente com o fornecedor.
 - Workspace separado "LabMattos" (`~/projetos/CRM`, projeto `Projeto_GTS_CRM`) é a origem do logo/favicon da marca e pode futuramente reusar `/api/crm/*` do allims-bi — nada disso foi iniciado, só recrutar quando o usuário pedir explicitamente.
 
+## API do Conta Azul — limites e tokens
+- Contas a pagar/receber (`/financeiro/eventos-financeiros/.../buscar`) exigem um intervalo completo de vencimento (ou criação/alteração) e, desde 13/11/2026, recusam com 400 qualquer intervalo de vencimento **ou** pagamento maior que 365 dias. Os syncs quebram o período em janelas (`janelasDeDatas`/`paginateJanelas` em `contaAzulSyncService.ts`) — nunca mandar intervalo maior direto.
+- O refresh token **gira a cada renovação** (o anterior morre na hora). Sempre criar o cliente via `getAPI()` de `contaAzulSyncService.ts`, que grava o par novo no banco no momento da renovação. Cliente que renova sem gravar derruba a conexão (`invalid_grant` em tudo) até alguém clicar em "Reconectar Conta Azul" em Configurações.
+
 ## Integração com o CRM (leitura)
 - `GET /api/integracao/crm/faturamento?desde=AAAA-MM-DD` entrega o cadastro do Conta Azul (com `codigo` de grupo) e as NFS-e para a conferência "executado no Allims × faturado" do CRM do Laboratório Mattos & Mattos (`~/projetos/CRM/Projeto_GTS_CRM`, módulo Faturamento). Só leitura.
 - Autenticação própria por token (`CRM_INTEGRACAO_TOKEN` no `backend/.env`), separada do JWT dos usuários; sem a variável a rota responde 503. O mesmo valor fica no CRM como `CA_BI_TOKEN`. Nunca repetir o valor em documentação.

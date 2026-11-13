@@ -12,12 +12,29 @@ export class ContaAzulAPI {
     private refreshToken: string;
     private clientId: string;
     private clientSecret: string;
+    // Chamado logo após cada renovação bem-sucedida. O refresh token GIRA a cada
+    // renovação (o anterior deixa de valer na hora), então quem cria o cliente
+    // precisa gravar o par novo imediatamente — se gravar só no fim do trabalho e
+    // o trabalho falhar no meio, o banco fica com um refresh token já invalidado
+    // e toda chamada seguinte volta 'invalid_grant' até reconectar o Conta Azul.
+    private onTokensRenovados?: (accessToken: string, refreshToken: string) => Promise<void>;
+    // Renovação em andamento, compartilhada: chamadas paralelas que tomam 401 ao
+    // mesmo tempo esperam a mesma renovação em vez de cada uma girar o token
+    // (a segunda usaria o refresh token que a primeira acabou de invalidar).
+    private renovacaoEmAndamento: Promise<boolean> | null = null;
 
-    constructor(accessToken: string, refreshToken: string = '', clientId: string = '', clientSecret: string = '') {
+    constructor(
+        accessToken: string,
+        refreshToken: string = '',
+        clientId: string = '',
+        clientSecret: string = '',
+        onTokensRenovados?: (accessToken: string, refreshToken: string) => Promise<void>,
+    ) {
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.onTokensRenovados = onTokensRenovados;
     }
 
     private getHeaders() {
@@ -32,6 +49,13 @@ export class ContaAzulAPI {
      * Tenta renovar o Access Token usando o Refresh Token
      */
     async tryRefreshToken(): Promise<boolean> {
+        if (!this.renovacaoEmAndamento) {
+            this.renovacaoEmAndamento = this.renovarToken().finally(() => { this.renovacaoEmAndamento = null; });
+        }
+        return this.renovacaoEmAndamento;
+    }
+
+    private async renovarToken(): Promise<boolean> {
         if (!this.refreshToken || !this.clientId || !this.clientSecret) {
             console.warn('[ContaAzulAPI] Sem credenciais completas para refresh.');
             return false;
@@ -55,6 +79,13 @@ export class ContaAzulAPI {
                     this.refreshToken = response.data.refresh_token;
                 }
                 console.log('[ContaAzulAPI] ✅ Token renovado com sucesso!');
+                if (this.onTokensRenovados) {
+                    try {
+                        await this.onTokensRenovados(this.accessToken, this.refreshToken);
+                    } catch (e: any) {
+                        console.error('[ContaAzulAPI] ❌ Token renovado mas NÃO gravado:', e.message);
+                    }
+                }
                 return true;
             }
             return false;

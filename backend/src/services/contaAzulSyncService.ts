@@ -45,27 +45,35 @@ export async function getAPI(): Promise<ContaAzulAPI> {
         prisma.appConfig.findUnique({ where: { key: 'refresh_token_rj' } }),
     ]);
 
+    // Toda renovação de token feita por este cliente já é gravada no banco na
+    // hora (ver onTokensRenovados em ContaAzulAPI) — não depende do chamador
+    // lembrar de chamar persistTokens nem de o trabalho terminar sem erro.
     return new ContaAzulAPI(
         accessCfg?.value || process.env.CONTA_AZUL_ACCESS_TOKEN_RJ || '',
         refreshCfg?.value || process.env.CONTA_AZUL_REFRESH_TOKEN_RJ || '',
         process.env.CONTA_AZUL_CLIENT_ID_RJ || '',
         process.env.CONTA_AZUL_CLIENT_SECRET_RJ || '',
+        gravarTokens,
     );
 }
 
-export async function persistTokens(api: ContaAzulAPI): Promise<void> {
+async function gravarTokens(accessToken: string, refreshToken: string): Promise<void> {
     await Promise.all([
         prisma.appConfig.upsert({
             where: { key: 'access_token_rj' },
-            update: { value: api.getAccessToken() },
-            create: { key: 'access_token_rj', value: api.getAccessToken() },
+            update: { value: accessToken },
+            create: { key: 'access_token_rj', value: accessToken },
         }),
         prisma.appConfig.upsert({
             where: { key: 'refresh_token_rj' },
-            update: { value: api.getRefreshTokenValue() },
-            create: { key: 'refresh_token_rj', value: api.getRefreshTokenValue() },
+            update: { value: refreshToken },
+            create: { key: 'refresh_token_rj', value: refreshToken },
         }),
     ]);
+}
+
+export async function persistTokens(api: ContaAzulAPI): Promise<void> {
+    await gravarTokens(api.getAccessToken(), api.getRefreshTokenValue());
 }
 
 // A API retorna apenas 'RECEBIDO' (pago) e 'EM_ABERTO' (aberto).
@@ -139,6 +147,56 @@ function dateStr(d: Date): string {
     return d.toISOString().split('T')[0];
 }
 
+// A API de contas a pagar/receber recusa (400) intervalos de data maiores que
+// 365 dias — vale para vencimento e para pagamento. Regra nova do Conta Azul,
+// apareceu entre 11 e 13/11/2026: "O intervalo de data de vencimento excede o
+// limite máximo permitido de 365 dias". Testado em produção: 2026-01-01 →
+// 2027-01-01 passa, 3 anos não. Usamos 365 dias contando as duas pontas.
+const DIAS_POR_JANELA = 365;
+
+/** Quebra [inicio, fim] (AAAA-MM-DD, inclusivo) em janelas contíguas de até 365 dias. */
+function janelasDeDatas(inicio: string, fim: string): Array<[string, string]> {
+    const janelas: Array<[string, string]> = [];
+    const fimMs = Date.parse(`${fim}T00:00:00Z`);
+    let de = new Date(`${inicio}T00:00:00Z`);
+    while (de.getTime() <= fimMs) {
+        const ate = new Date(de);
+        ate.setUTCDate(ate.getUTCDate() + DIAS_POR_JANELA - 1);
+        const ateFinal = ate.getTime() > fimMs ? new Date(fimMs) : ate;
+        janelas.push([dateStr(de), dateStr(ateFinal)]);
+        de = new Date(ateFinal);
+        de.setUTCDate(de.getUTCDate() + 1);
+    }
+    return janelas;
+}
+
+/**
+ * paginateAll em sequência sobre várias janelas de filtro, juntando tudo sem
+ * repetir título (dedupe por id). O progresso é acumulado entre as janelas.
+ */
+async function paginateJanelas<J>(
+    janelas: J[],
+    fetchFn: (janela: J, page: number) => Promise<any>,
+    onProgress?: (processados: number, total: number) => void,
+): Promise<any[]> {
+    const porId = new Map<string, any>();
+    const semId: any[] = [];
+    let jaBuscados = 0;
+    for (let i = 0; i < janelas.length; i++) {
+        if (i > 0) await sleep(300);
+        const itens = await paginateAll(
+            page => fetchFn(janelas[i], page),
+            (processados, total) => onProgress?.(jaBuscados + processados, jaBuscados + total),
+        );
+        jaBuscados += itens.length;
+        for (const item of itens) {
+            if (item?.id) porId.set(item.id, item);
+            else semId.push(item);
+        }
+    }
+    return [...porId.values(), ...semId];
+}
+
 // Converte data da API ("2026-01-01" ou ISO completo) para MEIO-DIA UTC.
 // Evita o bug de fuso: meia-noite UTC vira dia anterior no Brasil (UTC-3),
 // jogando despesas do dia 1º para o mês/ano errado nos controllers que usam getMonth() local.
@@ -205,15 +263,23 @@ function logDiagnosticoValores(items: any[]): void {
 // tentar mandar só data_pagamento. Por isso mandamos os dois: um vencimento bem
 // largo (só pra satisfazer a obrigatoriedade) + o pagamento de verdade, que é
 // quem decide o que entra no resultado.
+// Desde 13/11/2026 a API limita cada intervalo a 365 dias (ver DIAS_POR_JANELA),
+// então o vencimento largo e o período de pagamento viram janelas de até 1 ano,
+// e buscamos cada combinação. Janelas sem título custam só 1 requisição.
 const VENCIMENTO_ANCORA_INICIO = '2015-01-01'; // bem anterior a qualquer dado real do sistema
 async function syncDespesas(api: ContaAzulAPI, inicio: string, fim: string, replace: boolean): Promise<number> {
-    const vencimentoFimLargo = dateStr(new Date(new Date(`${fim}T00:00:00`).getFullYear() + 1, 11, 31));
-    const items = await paginateAll(
-        page => api.getContasAPagar({
-            dataVencimentoInicio: VENCIMENTO_ANCORA_INICIO,
-            dataVencimentoFim: vencimentoFimLargo,
-            dataPagamentoInicio: inicio,
-            dataPagamentoFim: fim,
+    const vencimentoFimLargo = `${Number(fim.slice(0, 4)) + 1}-12-31`;
+    const janelasVencimento = janelasDeDatas(VENCIMENTO_ANCORA_INICIO, vencimentoFimLargo);
+    const janelas = janelasDeDatas(inicio, fim).flatMap(pagamento =>
+        janelasVencimento.map(vencimento => ({ pagamento, vencimento }))
+    );
+    const items = await paginateJanelas(
+        janelas,
+        ({ pagamento, vencimento }, page) => api.getContasAPagar({
+            dataVencimentoInicio: vencimento[0],
+            dataVencimentoFim: vencimento[1],
+            dataPagamentoInicio: pagamento[0],
+            dataPagamentoFim: pagamento[1],
             pagina: page,
             tamanhoPagina: 10,
         }),
@@ -270,8 +336,9 @@ async function syncDespesas(api: ContaAzulAPI, inicio: string, fim: string, repl
 }
 
 async function syncReceitas(api: ContaAzulAPI, inicio: string, fim: string, replace: boolean): Promise<number> {
-    const items = await paginateAll(
-        page => api.getContasAReceber({ dataVencimentoInicio: inicio, dataVencimentoFim: fim, pagina: page, tamanhoPagina: 10 }),
+    const items = await paginateJanelas(
+        janelasDeDatas(inicio, fim),
+        ([de, ate], page) => api.getContasAReceber({ dataVencimentoInicio: de, dataVencimentoFim: ate, pagina: page, tamanhoPagina: 10 }),
         (processados, total) => { if (progressoAtual) progressoAtual.receitas = { processados, total }; }
     );
 

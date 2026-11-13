@@ -1,23 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { ContaAzulAPI } from '../services/contaAzulApi';
+import { getAPI } from '../services/contaAzulSyncService';
 import { authMiddleware } from '../middlewares/authMiddleware';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-async function getAPI(): Promise<ContaAzulAPI> {
-    const [acc, ref] = await Promise.all([
-        prisma.appConfig.findUnique({ where: { key: 'access_token_rj' } }),
-        prisma.appConfig.findUnique({ where: { key: 'refresh_token_rj' } }),
-    ]);
-    return new ContaAzulAPI(
-        acc?.value  || process.env.CONTA_AZUL_ACCESS_TOKEN_RJ  || '',
-        ref?.value  || process.env.CONTA_AZUL_REFRESH_TOKEN_RJ || '',
-        process.env.CONTA_AZUL_CLIENT_ID_RJ     || '',
-        process.env.CONTA_AZUL_CLIENT_SECRET_RJ || '',
-    );
-}
+// getAPI compartilhado: grava o token no banco a cada renovação (o refresh
+// token gira — renovar sem gravar derrubava a conexão com o Conta Azul).
 
 // GET /api/audit/comparar?year=2026
 // Busca o total de registros ao vivo na API e compara com o banco local
