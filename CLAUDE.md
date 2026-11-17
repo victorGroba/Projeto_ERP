@@ -31,6 +31,7 @@ Dashboard financeiro/BI para o laboratório Mattos & Mattos (LabMattos), consumi
 
 ## API do Conta Azul — limites e tokens
 - Contas a pagar/receber (`/financeiro/eventos-financeiros/.../buscar`) exigem um intervalo completo de vencimento (ou criação/alteração) e, desde 13/11/2026, recusam com 400 qualquer intervalo de vencimento **ou** pagamento maior que 365 dias. Os syncs quebram o período em janelas (`janelasDeDatas`/`paginateJanelas` em `contaAzulSyncService.ts`) — nunca mandar intervalo maior direto.
+- Rateio de despesas: a lista de contas a pagar traz `categorias` e `centros_de_custo` como listas soltas, sem vínculo nem valor. Título com mais de 1 categoria ou CC busca o detalhe (`GET /financeiro/eventos-financeiros/parcelas/{id}`), cujo `evento.rateio` traz os pares categoria × CC com valores **do evento inteiro** — a parcela é distribuída proporcionalmente (`distribuirParcelaPorRateio` em `rateioDespesas.ts`). Nunca voltar a usar `categorias[0]` para todos os CCs (bug reportado pelo setor em 11/2026: Insumos Físico/Químico aparecendo na Microbiologia).
 - O refresh token **gira a cada renovação** (o anterior morre na hora). Sempre criar o cliente via `getAPI()` de `contaAzulSyncService.ts`, que grava o par novo no banco no momento da renovação. Cliente que renova sem gravar derruba a conexão (`invalid_grant` em tudo) até alguém clicar em "Reconectar Conta Azul" em Configurações.
 
 ## Integração com o CRM (leitura)

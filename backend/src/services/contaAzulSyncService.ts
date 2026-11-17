@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { STATUS_RECEITA } from '../utils/statusReceita';
 import { ContaAzulAPI } from './contaAzulApi';
+import { distribuirParcelaPorRateio, LinhaRateio, SEM_CENTRO_DE_CUSTO } from './rateioDespesas';
 
 const prisma = new PrismaClient();
 
@@ -297,31 +298,64 @@ async function syncDespesas(api: ContaAzulAPI, inicio: string, fim: string, repl
     logDiagnosticoDatas(quitados, inicio, fim);
 
     const records: any[] = [];
+    let usaramDetalhe = 0;
+    let cairamNoFallback = 0;
+    let chamadasDetalhe = 0;
     for (const item of quitados) {
         const valorTotal = valorPagoDoItem(item);
         if (valorTotal <= 0) continue;
 
-        const ccs = item.centros_de_custo && item.centros_de_custo.length > 0 
-            ? item.centros_de_custo 
-            : [{ nome: 'Sem centro de custo' }];
-        
+        const base = {
+            tipo: 'DESPESA',
+            descricao: item.descricao || 'Sem descrição',
+            contaBancaria: item.conta_financeira?.nome || 'N/A',
+            dataPagamento: parseApiDate(item.data_pagamento || item.data_vencimento || item.data_competencia),
+            fornecedor: item.fornecedor?.nome || 'Diverso',
+        };
+
+        // Título com rateio (mais de 1 categoria ou mais de 1 CC): a lista não diz
+        // qual categoria vai com qual CC nem quanto — busca o detalhe da parcela,
+        // que traz o vínculo real (ver distribuirParcelaPorRateio).
+        const temRateio = (item.categorias?.length || 0) > 1 || (item.centros_de_custo?.length || 0) > 1;
+        if (temRateio) {
+            let linhas: LinhaRateio[] | null = null;
+            try {
+                if (chamadasDetalhe > 0) await sleep(200); // rate limit
+                chamadasDetalhe++;
+                const detalhe = await api.getParcela(item.id);
+                linhas = distribuirParcelaPorRateio(valorTotal, detalhe?.evento?.rateio);
+                if (!linhas) console.warn(`[Sync] Detalhe da parcela ${item.id} sem rateio utilizável — usando divisão antiga.`);
+            } catch (err: any) {
+                console.warn(`[Sync] Falha ao buscar detalhe da parcela ${item.id} — usando divisão antiga:`, err?.response?.status || err?.message);
+            }
+            if (linhas) {
+                usaramDetalhe++;
+                for (const l of linhas) {
+                    records.push({ ...base, categoria: l.categoria, centroDeCusto: l.centroDeCusto, valor: l.valor });
+                }
+                continue;
+            }
+            cairamNoFallback++;
+        }
+
+        const ccs = item.centros_de_custo && item.centros_de_custo.length > 0
+            ? item.centros_de_custo
+            : [{ nome: SEM_CENTRO_DE_CUSTO }];
+
         const valorRateado = valorTotal / ccs.length;
 
         for (const cc of ccs) {
             records.push({
-                tipo: 'DESPESA',
-                descricao: item.descricao || 'Sem descrição',
+                ...base,
                 categoria: item.categorias?.[0]?.nome || 'Diversos',
                 centroDeCusto: cc.nome,
-                contaBancaria: item.conta_financeira?.nome || 'N/A',
-                dataPagamento: parseApiDate(item.data_pagamento || item.data_vencimento || item.data_competencia),
                 valor: valorRateado,
-                fornecedor: item.fornecedor?.nome || 'Diverso',
             });
         }
     }
 
     console.log(`[Sync] Despesas: ${records.length}/${items.length} títulos quitados (de um total de ${items.length} buscados no período).`);
+    console.log(`[Sync] Despesas com rateio: ${usaramDetalhe} distribuídas pelo detalhe da parcela, ${cairamNoFallback} no fallback (divisão igual por CC).`);
 
     if (replace) {
         await prisma.lancamento.deleteMany({ where: { tipo: 'DESPESA' } });

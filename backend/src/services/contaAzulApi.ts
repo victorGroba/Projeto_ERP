@@ -207,6 +207,15 @@ export class ContaAzulAPI {
         );
     }
 
+    /**
+     * Detalhe de uma parcela (id do item de contas-a-pagar/receber/buscar).
+     * Traz `evento.rateio` com o vínculo categoria × centro de custo e valores
+     * do evento inteiro — a lista só traz categorias e CCs soltos.
+     */
+    async getParcela(id: string): Promise<any> {
+        return this.getWithRetry(`${this.baseURL}/financeiro/eventos-financeiros/parcelas/${encodeURIComponent(id)}`);
+    }
+
     // ============================================
     // VENDAS
     // ============================================
